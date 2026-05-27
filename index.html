@@ -14,61 +14,145 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" />
     <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
-            onload="renderMathInElement(document.body, { delimiters: [{left:'$$', right:'$$', display:true},{left:'$', right:'$', display:false}] })"></script>
+            onload="renderMathInElement(document.body, { delimiters: [{left:'$$', right:'$$', display:true},{left:'$', right:'$', display:false}], ignoredTags: ['option','script','textarea'] })"></script>
 
     <link rel="stylesheet" href="./style.css" />
   </head>
   <body>
     <header>
       <div class="title">
-        <span class="dot"></span>
-        <strong>stats-lab</strong>
+        <span class="dot"></span><strong>stats-lab</strong>
         <span class="sub">probability &amp; statistics, visual</span>
       </div>
       <nav>
-        <a href="#dist">distributions</a>
+        <a href="#prob">probability</a>
+        <a href="#disc">discrete</a>
+        <a href="#cont">continuous</a>
+        <a href="#sum">sums</a>
         <a href="#clt">CLT</a>
         <a href="#bayes">Bayes</a>
+        <a href="#mle">MLE</a>
         <a href="#ci">CI</a>
-        <a href="#ht">hypothesis</a>
+        <a href="#ht">test</a>
+        <a href="#tn">t vs N</a>
         <a href="#reg">regression</a>
-        <a href="#mc">Monte Carlo</a>
-        <a href="#rw">random walk</a>
+        <a href="#mc">MC π</a>
+        <a href="#rw">walks</a>
       </nav>
     </header>
 
     <main>
-      <!-- 1. DISTRIBUTIONS ------------------------------------------------- -->
-      <section class="demo" id="dist">
-        <h2>1. Distributions</h2>
-        <p class="cap">PDF/PMF of the canonical distributions. Drag the sliders.</p>
+      <!-- 1. PROBABILITY BASICS ------------------------------------------ -->
+      <section class="demo" id="prob">
+        <h2>1. Probability — Venn</h2>
+        <p class="cap">$P(A\cup B) = P(A) + P(B) - P(A\cap B)$. Independence holds when $P(A\cap B)=P(A)P(B)$.</p>
         <div class="row">
-          <div class="canvas-wrap"><canvas id="cv-dist" width="600" height="280"></canvas></div>
+          <div class="canvas-wrap"><canvas id="cv-prob" width="600" height="300"></canvas></div>
           <div class="ctrls">
-            <label>family
-              <select id="dist-family">
-                <option value="normal">Normal $\mathcal{N}(\mu,\sigma^2)$</option>
-                <option value="binom">Binomial $\text{Bin}(n,p)$</option>
-                <option value="poisson">Poisson $\text{Pois}(\lambda)$</option>
-                <option value="expo">Exponential $\text{Exp}(\lambda)$</option>
-                <option value="beta">Beta $\text{Beta}(\alpha,\beta)$</option>
-              </select>
-            </label>
-            <label>p1 <span class="mono" id="dist-p1v">0</span>
-              <input id="dist-p1" type="range" min="-3" max="3" step="0.05" value="0"/></label>
-            <label>p2 <span class="mono" id="dist-p2v">1</span>
-              <input id="dist-p2" type="range" min="0.1" max="3" step="0.05" value="1"/></label>
-            <label class="check"><input id="dist-cdf" type="checkbox"/> show CDF</label>
+            <label>P(A) <span class="mono" id="pr-av">0.40</span>
+              <input id="pr-a" type="range" min="0.05" max="0.95" step="0.01" value="0.40"/></label>
+            <label>P(B) <span class="mono" id="pr-bv">0.30</span>
+              <input id="pr-b" type="range" min="0.05" max="0.95" step="0.01" value="0.30"/></label>
+            <label>P(A∩B) <span class="mono" id="pr-iv">0.10</span>
+              <input id="pr-i" type="range" min="0.00" max="0.95" step="0.01" value="0.10"/></label>
+            <div class="readout"><span>P(A∪B)</span><strong id="pr-u" class="mono">—</strong></div>
+            <div class="readout"><span>P(A|B)</span><strong id="pr-cab" class="mono">—</strong></div>
+            <div class="readout"><span>P(B|A)</span><strong id="pr-cba" class="mono">—</strong></div>
+            <div class="readout"><span>independent?</span><strong id="pr-ind" class="mono">—</strong></div>
           </div>
         </div>
       </section>
 
-      <!-- 2. CENTRAL LIMIT THEOREM ---------------------------------------- -->
-      <section class="demo" id="clt">
-        <h2>2. Central Limit Theorem</h2>
-        <p class="cap">Draw $m$ samples of size $n$ from a non-normal distribution; histogram of sample means. As $n$ grows, it goes Gaussian.</p>
+      <!-- 2. DISCRETE ---------------------------------------------------- -->
+      <section class="demo" id="disc">
+        <h2>2. Discrete distributions</h2>
+        <p class="cap">PMF + CDF. Mean, variance, mode shown — try to predict them before you read.</p>
         <div class="row">
-          <div class="canvas-wrap"><canvas id="cv-clt" width="600" height="280"></canvas></div>
+          <div class="canvas-wrap"><canvas id="cv-disc" width="600" height="300"></canvas></div>
+          <div class="ctrls">
+            <label>family
+              <select id="disc-f">
+                <option value="bernoulli">Bernoulli(p)</option>
+                <option value="binomial" selected>Binomial(n, p)</option>
+                <option value="geometric">Geometric(p)</option>
+                <option value="negbin">Neg. Binomial(r, p)</option>
+                <option value="poisson">Poisson(λ)</option>
+              </select>
+            </label>
+            <label id="disc-p1-lbl">n <span class="mono" id="disc-p1v">20</span>
+              <input id="disc-p1" type="range" min="1" max="60" step="1" value="20"/></label>
+            <label id="disc-p2-lbl">p <span class="mono" id="disc-p2v">0.50</span>
+              <input id="disc-p2" type="range" min="0.01" max="0.99" step="0.01" value="0.50"/></label>
+            <div class="readout"><span>E[X]</span><strong id="disc-mean" class="mono">—</strong></div>
+            <div class="readout"><span>Var[X]</span><strong id="disc-var"  class="mono">—</strong></div>
+            <div class="readout"><span>mode</span><strong id="disc-mode" class="mono">—</strong></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 3. CONTINUOUS -------------------------------------------------- -->
+      <section class="demo" id="cont">
+        <h2>3. Continuous distributions</h2>
+        <p class="cap">PDF in colour, CDF overlay (toggle). Integrate the PDF over an interval to read a probability.</p>
+        <div class="row">
+          <div class="canvas-wrap"><canvas id="cv-cont" width="600" height="300"></canvas></div>
+          <div class="ctrls">
+            <label>family
+              <select id="cont-f">
+                <option value="uniform">Uniform(a, b)</option>
+                <option value="normal" selected>Normal(μ, σ)</option>
+                <option value="exponential">Exponential(λ)</option>
+                <option value="gamma">Gamma(k, θ)</option>
+                <option value="beta">Beta(α, β)</option>
+                <option value="chi2">Chi-squared(k)</option>
+              </select>
+            </label>
+            <label id="cont-p1-lbl">μ <span class="mono" id="cont-p1v">0.00</span>
+              <input id="cont-p1" type="range" min="-3" max="3" step="0.05" value="0.00"/></label>
+            <label id="cont-p2-lbl">σ <span class="mono" id="cont-p2v">1.00</span>
+              <input id="cont-p2" type="range" min="0.10" max="3" step="0.05" value="1.00"/></label>
+            <label class="check"><input id="cont-cdf" type="checkbox"/> show CDF</label>
+            <div class="readout"><span>E[X]</span><strong id="cont-mean" class="mono">—</strong></div>
+            <div class="readout"><span>Var[X]</span><strong id="cont-var"  class="mono">—</strong></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 4. SUMS / CONVOLUTION ----------------------------------------- -->
+      <section class="demo" id="sum">
+        <h2>4. Sum of independent variables</h2>
+        <p class="cap">Density of $X+Y$ is $(f_X * f_Y)$, the convolution. Two uniforms → triangle. Two normals → wider normal.</p>
+        <div class="row">
+          <div class="canvas-wrap"><canvas id="cv-sum" width="600" height="300"></canvas></div>
+          <div class="ctrls">
+            <label>X
+              <select id="sum-x">
+                <option value="uniform" selected>Uniform[0,1]</option>
+                <option value="normal">Normal(0,1)</option>
+                <option value="exp">Exponential(1)</option>
+                <option value="tri">Triangular</option>
+              </select>
+            </label>
+            <label>Y
+              <select id="sum-y">
+                <option value="uniform" selected>Uniform[0,1]</option>
+                <option value="normal">Normal(0,1)</option>
+                <option value="exp">Exponential(1)</option>
+                <option value="tri">Triangular</option>
+              </select>
+            </label>
+            <button id="sum-go" class="btn">resample</button>
+            <div class="readout"><span>samples</span><strong class="mono">20,000</strong></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 5. CLT --------------------------------------------------------- -->
+      <section class="demo" id="clt">
+        <h2>5. Central Limit Theorem</h2>
+        <p class="cap">Sample-mean histogram from any reasonable source converges to $\mathcal{N}(\mu, \sigma^2/n)$.</p>
+        <div class="row">
+          <div class="canvas-wrap"><canvas id="cv-clt" width="600" height="300"></canvas></div>
           <div class="ctrls">
             <label>source
               <select id="clt-src">
@@ -78,42 +162,66 @@
                 <option value="cauchy">Cauchy (fails!)</option>
               </select>
             </label>
-            <label>sample size n <span class="mono" id="clt-nv">10</span>
-              <input id="clt-n" type="range" min="1" max="120" value="10"/></label>
+            <label>n <span class="mono" id="clt-nv">10</span>
+              <input id="clt-n" type="range" min="1" max="120" step="1" value="10"/></label>
             <label>draws <span class="mono" id="clt-mv">2000</span>
-              <input id="clt-m" type="range" min="200" max="10000" step="200" value="2000"/></label>
+              <input id="clt-m" type="range" min="500" max="10000" step="500" value="2000"/></label>
             <button id="clt-go" class="btn">resample</button>
           </div>
         </div>
       </section>
 
-      <!-- 3. BAYES -------------------------------------------------------- -->
+      <!-- 6. BAYES ------------------------------------------------------- -->
       <section class="demo" id="bayes">
-        <h2>3. Bayes' theorem</h2>
-        <p class="cap">A 100-person grid. Drag the priors. Posterior $P(D \mid +)$ updates.</p>
+        <h2>6. Bayes — base-rate fallacy</h2>
+        <p class="cap">1000 people. Drag prior, sensitivity, specificity. Watch how rare diseases stay rare even after a positive test.</p>
         <div class="row">
-          <div class="canvas-wrap"><canvas id="cv-bayes" width="600" height="280"></canvas></div>
+          <div class="canvas-wrap"><canvas id="cv-bayes" width="600" height="300"></canvas></div>
           <div class="ctrls">
-            <label>base rate $P(D)$ <span class="mono" id="bay-pv">0.05</span>
-              <input id="bay-prior" type="range" min="0.005" max="0.5" step="0.005" value="0.05"/></label>
-            <label>sensitivity $P(+ \mid D)$ <span class="mono" id="bay-sv">0.95</span>
-              <input id="bay-sens" type="range" min="0.5" max="1" step="0.01" value="0.95"/></label>
-            <label>specificity $P(- \mid \neg D)$ <span class="mono" id="bay-tv">0.92</span>
-              <input id="bay-spec" type="range" min="0.5" max="1" step="0.01" value="0.92"/></label>
-            <div class="readout"><span>posterior</span><strong id="bay-post" class="mono">—</strong></div>
+            <label>P(D) <span class="mono" id="bay-pv">0.050</span>
+              <input id="bay-prior" type="range" min="0.001" max="0.5" step="0.001" value="0.05"/></label>
+            <label>sensitivity <span class="mono" id="bay-sv">0.95</span>
+              <input id="bay-sens"  type="range" min="0.50" max="1.00" step="0.01" value="0.95"/></label>
+            <label>specificity <span class="mono" id="bay-tv">0.92</span>
+              <input id="bay-spec"  type="range" min="0.50" max="1.00" step="0.01" value="0.92"/></label>
+            <div class="readout"><span>P(D | +)</span><strong id="bay-post"  class="mono big">—</strong></div>
+            <div class="readout"><span>P(D | −)</span><strong id="bay-postn" class="mono">—</strong></div>
           </div>
         </div>
       </section>
 
-      <!-- 4. CONFIDENCE INTERVALS ----------------------------------------- -->
+      <!-- 7. MLE -------------------------------------------------------- -->
+      <section class="demo" id="mle">
+        <h2>7. Maximum likelihood</h2>
+        <p class="cap">Fix some data. Slide the parameter. The likelihood peaks at the MLE — for an i.i.d. normal sample, that's the sample mean.</p>
+        <div class="row">
+          <div class="canvas-wrap"><canvas id="cv-mle" width="600" height="300"></canvas></div>
+          <div class="ctrls">
+            <label>model
+              <select id="mle-m">
+                <option value="normal-mu">Normal(μ, 1) — pick μ</option>
+                <option value="bernoulli-p">Bernoulli(p) — pick p</option>
+                <option value="exp-lam">Exponential(λ) — pick λ</option>
+              </select>
+            </label>
+            <label>parameter <span class="mono" id="mle-pv">0.00</span>
+              <input id="mle-p" type="range" min="-3" max="3" step="0.02" value="0"/></label>
+            <button id="mle-resample" class="btn">resample data</button>
+            <div class="readout"><span>log-likelihood</span><strong id="mle-ll" class="mono">—</strong></div>
+            <div class="readout"><span>MLE</span><strong id="mle-best" class="mono">—</strong></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 8. CONFIDENCE INTERVALS -------------------------------------- -->
       <section class="demo" id="ci">
-        <h2>4. Confidence intervals</h2>
-        <p class="cap">100 CIs from independent samples of $\mathcal{N}(0,1)$. The dashed line is the true mean. Coverage should match the nominal level.</p>
+        <h2>8. Confidence intervals</h2>
+        <p class="cap">100 random samples from $\mathcal{N}(0,1)$, 100 intervals. Long-run coverage should match nominal.</p>
         <div class="row">
           <div class="canvas-wrap"><canvas id="cv-ci" width="600" height="320"></canvas></div>
           <div class="ctrls">
-            <label>sample size n <span class="mono" id="ci-nv">12</span>
-              <input id="ci-n" type="range" min="2" max="100" value="12"/></label>
+            <label>n <span class="mono" id="ci-nv">12</span>
+              <input id="ci-n" type="range" min="2"  max="100" step="1"   value="12"/></label>
             <label>level <span class="mono" id="ci-lv">0.95</span>
               <input id="ci-l" type="range" min="0.50" max="0.99" step="0.01" value="0.95"/></label>
             <button id="ci-go" class="btn">resample</button>
@@ -122,51 +230,73 @@
         </div>
       </section>
 
-      <!-- 5. HYPOTHESIS TEST ---------------------------------------------- -->
+      <!-- 9. HYPOTHESIS TEST -------------------------------------------- -->
       <section class="demo" id="ht">
-        <h2>5. Hypothesis test</h2>
-        <p class="cap">$H_0: \mu=0$ vs $H_1: \mu=\delta$. Drag effect size and threshold; see Type I (red) and Type II (orange) error.</p>
+        <h2>9. Hypothesis test &amp; p-value</h2>
+        <p class="cap">Red shade: Type I (α). Orange shade: Type II (β). Drag $\delta$ and $c$ to feel the trade-off.</p>
         <div class="row">
-          <div class="canvas-wrap"><canvas id="cv-ht" width="600" height="280"></canvas></div>
+          <div class="canvas-wrap"><canvas id="cv-ht" width="600" height="300"></canvas></div>
           <div class="ctrls">
-            <label>effect size $\delta$ <span class="mono" id="ht-dv">2.0</span>
-              <input id="ht-d" type="range" min="0" max="5" step="0.05" value="2"/></label>
-            <label>threshold $c$ <span class="mono" id="ht-cv">1.64</span>
+            <label>effect δ <span class="mono" id="ht-dv">2.0</span>
+              <input id="ht-d" type="range" min="0"  max="5" step="0.05" value="2"/></label>
+            <label>threshold c <span class="mono" id="ht-cv">1.64</span>
               <input id="ht-c" type="range" min="-2" max="6" step="0.05" value="1.64"/></label>
-            <div class="readout"><span>$\alpha$ (Type I)</span><strong id="ht-a" class="mono">—</strong></div>
-            <div class="readout"><span>$\beta$ (Type II)</span><strong id="ht-b" class="mono">—</strong></div>
+            <label>observed z <span class="mono" id="ht-zv">2.10</span>
+              <input id="ht-z" type="range" min="-3" max="6" step="0.05" value="2.1"/></label>
+            <div class="readout"><span>α</span><strong id="ht-a" class="mono">—</strong></div>
+            <div class="readout"><span>β</span><strong id="ht-b" class="mono">—</strong></div>
             <div class="readout"><span>power</span><strong id="ht-p" class="mono">—</strong></div>
+            <div class="readout"><span>p-value</span><strong id="ht-pv" class="mono big">—</strong></div>
           </div>
         </div>
       </section>
 
-      <!-- 6. LINEAR REGRESSION -------------------------------------------- -->
+      <!-- 10. t vs Normal ----------------------------------------------- -->
+      <section class="demo" id="tn">
+        <h2>10. t-distribution vs Normal</h2>
+        <p class="cap">Heavier tails when $df$ is small. As $df\to\infty$ it converges to $\mathcal{N}(0,1)$.</p>
+        <div class="row">
+          <div class="canvas-wrap"><canvas id="cv-tn" width="600" height="280"></canvas></div>
+          <div class="ctrls">
+            <label>df <span class="mono" id="tn-dv">3</span>
+              <input id="tn-d" type="range" min="1" max="60" step="1" value="3"/></label>
+            <label>tail mass past <span class="mono" id="tn-cv">2.00</span>
+              <input id="tn-c" type="range" min="0" max="5" step="0.05" value="2"/></label>
+            <div class="readout"><span>tail (t)</span><strong id="tn-pt" class="mono">—</strong></div>
+            <div class="readout"><span>tail (N)</span><strong id="tn-pn" class="mono">—</strong></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 11. REGRESSION ------------------------------------------------ -->
       <section class="demo" id="reg">
-        <h2>6. Linear regression</h2>
-        <p class="cap">Drag points. The OLS line minimises $\sum (y - \hat y)^2$.</p>
+        <h2>11. Linear regression</h2>
+        <p class="cap">Drag points. The OLS line minimises $\sum(y-\hat y)^2$. Watch $R^2$ collapse when you add an outlier.</p>
         <div class="row">
           <div class="canvas-wrap"><canvas id="cv-reg" width="600" height="320"></canvas></div>
           <div class="ctrls">
             <div class="readout"><span>slope $\hat\beta_1$</span><strong id="reg-b1" class="mono">—</strong></div>
             <div class="readout"><span>intercept $\hat\beta_0$</span><strong id="reg-b0" class="mono">—</strong></div>
             <div class="readout"><span>$R^2$</span><strong id="reg-r2" class="mono">—</strong></div>
-            <label class="check"><input id="reg-res" type="checkbox" checked/> show residuals</label>
+            <div class="readout"><span>RMSE</span><strong id="reg-rmse" class="mono">—</strong></div>
+            <label class="check"><input id="reg-res" type="checkbox" checked/> residuals</label>
+            <label class="check"><input id="reg-cb"  type="checkbox"/> 95% confidence band</label>
             <button id="reg-reset" class="btn">reset points</button>
           </div>
         </div>
       </section>
 
-      <!-- 7. MONTE CARLO PI ----------------------------------------------- -->
+      <!-- 12. MONTE CARLO PI ------------------------------------------- -->
       <section class="demo" id="mc">
-        <h2>7. Monte Carlo $\pi$</h2>
-        <p class="cap">Throw random points at a unit square. Fraction inside the quarter-circle times 4 converges to $\pi$.</p>
+        <h2>12. Monte Carlo $\pi$</h2>
+        <p class="cap">Fraction of darts inside the quarter circle, times 4. Error shrinks like $1/\sqrt N$.</p>
         <div class="row">
           <div class="canvas-wrap"><canvas id="cv-mc" width="320" height="320"></canvas></div>
           <div class="ctrls">
-            <label>throw rate <span class="mono" id="mc-rv">300/s</span>
+            <label>rate <span class="mono" id="mc-rv">300/s</span>
               <input id="mc-r" type="range" min="60" max="3000" step="60" value="300"/></label>
-            <div class="readout"><span>thrown</span><strong id="mc-n" class="mono">0</strong></div>
-            <div class="readout"><span>inside</span><strong id="mc-k" class="mono">0</strong></div>
+            <div class="readout"><span>thrown</span><strong id="mc-n"  class="mono">0</strong></div>
+            <div class="readout"><span>inside</span><strong id="mc-k"  class="mono">0</strong></div>
             <div class="readout"><span>$\hat\pi$</span><strong id="mc-pi" class="mono big">—</strong></div>
             <button id="mc-toggle" class="btn">pause</button>
             <button id="mc-reset"  class="btn">reset</button>
@@ -174,16 +304,16 @@
         </div>
       </section>
 
-      <!-- 8. RANDOM WALK -------------------------------------------------- -->
+      <!-- 13. RANDOM WALKS --------------------------------------------- -->
       <section class="demo" id="rw">
-        <h2>8. Random walk</h2>
-        <p class="cap">$k$ independent walks. The dashed envelope is $\pm\sqrt{t}$.</p>
+        <h2>13. Random walks</h2>
+        <p class="cap">Symmetric walks spread like $\sqrt t$; a tiny drift dominates eventually.</p>
         <div class="row">
           <div class="canvas-wrap"><canvas id="cv-rw" width="600" height="280"></canvas></div>
           <div class="ctrls">
             <label>walks $k$ <span class="mono" id="rw-kv">40</span>
-              <input id="rw-k" type="range" min="1" max="200" value="40"/></label>
-            <label>step bias <span class="mono" id="rw-bv">0</span>
+              <input id="rw-k" type="range" min="1" max="200" step="1" value="40"/></label>
+            <label>step bias <span class="mono" id="rw-bv">0.00</span>
               <input id="rw-b" type="range" min="-0.4" max="0.4" step="0.01" value="0"/></label>
             <button id="rw-go" class="btn">replay</button>
           </div>

@@ -1,470 +1,807 @@
 // ============================================================
-// stats-lab — eight self-contained demos.
-// All canvas drawing is pure 2D; all randomness uses Math.random.
+// stats-lab — 13 visual probability + statistics demos.
+//
+// Every demo follows the same three-step pattern:
+//   1. read slider state through `n(id, default)` → always finite
+//   2. compute samples / curve into a local buffer
+//   3. render in a single `draw()` wrapped in try/catch
+//
+// `draw` is idempotent: on every call it resets the canvas transform,
+// clears the canvas, then draws from scratch. This means resizes and
+// rapid slider input can never compound state.
 // ============================================================
 
 const TAU = Math.PI * 2;
 
-// ---------- math helpers --------------------------------------------------
-function lcg() { return Math.random(); }                          // alias for clarity
-function gauss(mu = 0, sd = 1) {                                  // Box–Muller normal sample
-  const u = Math.max(1e-12, lcg()), v = lcg();
+// ---------- numeric helpers ----------------------------------------------
+const safe = (x, d = 0) => Number.isFinite(x) ? x : d;
+const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
+function n(id, fallback) {
+  const el = document.getElementById(id);
+  const v = el ? +el.value : NaN;
+  return Number.isFinite(v) ? v : fallback;
+}
+function gauss(mu = 0, sd = 1) {
+  const u = Math.max(1e-12, Math.random()), v = Math.random();
   return mu + sd * Math.sqrt(-2 * Math.log(u)) * Math.cos(TAU * v);
 }
+function expRV(lam) { return -Math.log(Math.max(1e-12, Math.random())) / lam; }
 function logGamma(z) {
-  // Lanczos approximation
+  if (z < 0.5) return Math.log(Math.PI / Math.sin(Math.PI * z)) - logGamma(1 - z);
   const g = 7;
   const c = [0.99999999999980993, 676.5203681218851, -1259.1392167224028,
              771.32342877765313, -176.61502916214059, 12.507343278686905,
              -0.13857109526572012, 9.9843695780195716e-6, 1.5056327351493116e-7];
-  if (z < 0.5) return Math.log(Math.PI / Math.sin(Math.PI * z)) - logGamma(1 - z);
   z -= 1;
   let x = c[0];
   for (let i = 1; i < g + 2; i++) x += c[i] / (z + i);
   const t = z + g + 0.5;
   return 0.5 * Math.log(TAU) + (z + 0.5) * Math.log(t) - t + Math.log(x);
 }
-function fact(n) { return Math.round(Math.exp(logGamma(n + 1))); }
-function logComb(n, k) { return logGamma(n + 1) - logGamma(k + 1) - logGamma(n - k + 1); }
+function logBin(nn, k) { return logGamma(nn + 1) - logGamma(k + 1) - logGamma(nn - k + 1); }
 function erf(x) {
-  // Abramowitz–Stegun approximation, max error ~1.5e-7
   const s = Math.sign(x); x = Math.abs(x);
   const a1=0.254829592,a2=-0.284496736,a3=1.421413741,a4=-1.453152027,a5=1.061405429,p=0.3275911;
   const t = 1 / (1 + p * x);
   const y = 1 - (((((a5*t + a4)*t) + a3)*t + a2)*t + a1)*t * Math.exp(-x*x);
   return s * y;
 }
-function normCDF(z) { return 0.5 * (1 + erf(z / Math.SQRT2)); }
-function normPDF(x, mu, sd) {
-  const z = (x - mu) / sd;
+function ncdf(z)         { return 0.5 * (1 + erf(z / Math.SQRT2)); }
+function npdf(x, mu, sd) {
+  const z = safe((x - mu) / sd, 0);
   return Math.exp(-0.5 * z * z) / (sd * Math.sqrt(TAU));
 }
-function clamp(x, a, b) { return Math.max(a, Math.min(b, x)); }
-
-// ---------- canvas helpers ------------------------------------------------
-function setupCanvas(cv) {
-  const dpr = Math.max(1, window.devicePixelRatio || 1);
-  const rect = cv.getBoundingClientRect();
-  cv.width = Math.floor(rect.width * dpr);
-  cv.height = Math.floor(cv.height ? cv.height : 280 * dpr);
-  // Use the height the HTML attribute requested, but in device pixels.
-  cv.height = Math.floor(parseInt(cv.getAttribute('height'), 10) * dpr);
-  cv.style.height = parseInt(cv.getAttribute('height'), 10) + 'px';
-  const ctx = cv.getContext('2d');
-  ctx.scale(dpr, dpr);
-  ctx.font = '11px Inter, sans-serif';
-  return { ctx, w: rect.width, h: parseInt(cv.getAttribute('height'), 10) };
+// Inverse normal via Newton step (good for level ∈ [0.5, 0.99])
+function zstar(level) {
+  const target = (1 + clamp(level, 0.5, 0.999)) / 2;
+  let z = 1.96;
+  for (let i = 0; i < 40; i++) {
+    const f = ncdf(z) - target;
+    const df = npdf(z, 0, 1);
+    if (!df) break;
+    z -= f / df;
+  }
+  return z;
 }
 
+// ---------- canvas helpers -----------------------------------------------
 const ACCENT = '#4338CA';
-const ACCENT_SOFT = 'rgba(67,56,202,0.20)';
+const ACCENT_S = 'rgba(67,56,202,0.20)';
 const RULE = '#E5E5EA';
-const INK = '#15151A';
+const INK  = '#15151A';
 const INK_S = '#4B4B55';
 const MUTED = '#8A8A92';
 const GOOD = '#16A34A';
 const WARN = '#F59E0B';
 const BAD  = '#DC2626';
 
+function fitCanvas(cv) {
+  const dpr = Math.max(1, window.devicePixelRatio || 1);
+  const rect = cv.getBoundingClientRect();
+  const cssW = Math.max(80, rect.width);
+  const cssH = Math.max(80, parseInt(cv.getAttribute('height'), 10) || 280);
+  cv.width  = Math.floor(cssW * dpr);
+  cv.height = Math.floor(cssH * dpr);
+  cv.style.height = cssH + 'px';
+  const ctx = cv.getContext('2d');
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);     // single source of truth — resets every call
+  ctx.font = '11px Inter, sans-serif';
+  ctx.textBaseline = 'alphabetic';
+  return { ctx, w: cssW, h: cssH };
+}
+
 function axes(ctx, w, h, m, opts = {}) {
   ctx.strokeStyle = RULE; ctx.lineWidth = 1;
   ctx.beginPath();
-  ctx.moveTo(m.l, m.t);     ctx.lineTo(m.l, h - m.b);
+  ctx.moveTo(m.l, m.t); ctx.lineTo(m.l, h - m.b);
   ctx.lineTo(w - m.r, h - m.b);
   ctx.stroke();
-  if (opts.yLabel) {
-    ctx.save();
-    ctx.translate(8, m.t + (h - m.t - m.b) / 2); ctx.rotate(-Math.PI / 2);
-    ctx.fillStyle = MUTED; ctx.textAlign = 'center';
-    ctx.fillText(opts.yLabel, 0, 0);
-    ctx.restore();
-  }
-  if (opts.xLabel) {
-    ctx.fillStyle = MUTED; ctx.textAlign = 'center';
-    ctx.fillText(opts.xLabel, m.l + (w - m.l - m.r) / 2, h - 4);
+  if (opts.x) { ctx.fillStyle = MUTED; ctx.textAlign = 'center'; ctx.fillText(opts.x, m.l + (w - m.l - m.r) / 2, h - 4); }
+  if (opts.y) {
+    ctx.save(); ctx.translate(10, m.t + (h - m.t - m.b) / 2); ctx.rotate(-Math.PI / 2);
+    ctx.fillStyle = MUTED; ctx.textAlign = 'center'; ctx.fillText(opts.y, 0, 0); ctx.restore();
   }
 }
 
-// ============================================================
-// 1) Distributions
-// ============================================================
-(function demo_dist() {
-  const cv = document.getElementById('cv-dist');
-  const fam = document.getElementById('dist-family');
-  const p1  = document.getElementById('dist-p1');
-  const p2  = document.getElementById('dist-p2');
-  const p1v = document.getElementById('dist-p1v');
-  const p2v = document.getElementById('dist-p2v');
-  const cdf = document.getElementById('dist-cdf');
+// Auto-y-scale that ignores Infinity / outliers — the cause of the "blank canvas" bug
+// when a PDF blows up near a singularity.
+function robustMax(ys) {
+  const v = ys.filter(Number.isFinite);
+  if (!v.length) return 1;
+  v.sort((a, b) => a - b);
+  const q = v[Math.floor(v.length * 0.98)] || v[v.length - 1];
+  return Math.max(1e-9, q * 1.1);
+}
 
-  const PARAMS = {
-    normal:  { p1: { min: -3, max: 3, step: 0.05, val: 0,   label: 'μ' },
-               p2: { min: 0.1, max: 3, step: 0.05, val: 1,   label: 'σ' } },
-    binom:   { p1: { min: 1, max: 60, step: 1,    val: 20,  label: 'n' },
-               p2: { min: 0.05, max: 0.95, step: 0.01, val: 0.5, label: 'p' } },
-    poisson: { p1: { min: 0.1, max: 30, step: 0.1, val: 4,   label: 'λ' },
-               p2: { min: 0, max: 1, step: 1, val: 0, label: '—' } },
-    expo:    { p1: { min: 0.1, max: 5, step: 0.05, val: 1,   label: 'λ' },
-               p2: { min: 0, max: 1, step: 1, val: 0, label: '—' } },
-    beta:    { p1: { min: 0.3, max: 8, step: 0.1, val: 2,    label: 'α' },
-               p2: { min: 0.3, max: 8, step: 0.1, val: 5,    label: 'β' } },
-  };
+function setText(id, t) { const el = document.getElementById(id); if (el) el.textContent = t; }
 
-  function syncParams(f) {
-    const P = PARAMS[f];
-    p1.min = P.p1.min; p1.max = P.p1.max; p1.step = P.p1.step; p1.value = P.p1.val;
-    p2.min = P.p2.min; p2.max = P.p2.max; p2.step = P.p2.step; p2.value = P.p2.val;
-    p1.disabled = false;
-    p2.disabled = P.p2.label === '—';
-  }
-  syncParams(fam.value);
+// Wrap each demo init so a single bad demo can't break the page.
+function mount(name, fn) {
+  try { fn(); } catch (e) { console.error(`[stats-lab] ${name} init failed`, e); }
+}
+
+// =============================================================
+// 1) Probability / Venn
+// =============================================================
+mount('prob', () => {
+  const cv  = document.getElementById('cv-prob');
+  const pA  = document.getElementById('pr-a'),  pB = document.getElementById('pr-b'), pI = document.getElementById('pr-i');
+  const av  = document.getElementById('pr-av'), bv = document.getElementById('pr-bv'), iv = document.getElementById('pr-iv');
 
   function draw() {
-    const { ctx, w, h } = setupCanvas(cv);
+    const { ctx, w, h } = fitCanvas(cv);
     ctx.clearRect(0, 0, w, h);
-    const m = { l: 36, r: 12, t: 14, b: 28 };
-    const a = +p1.value, b = +p2.value;
-    p1v.textContent = a.toFixed(2);
-    p2v.textContent = b.toFixed(2);
+    let a = clamp(n('pr-a', 0.4), 0.05, 0.95);
+    let b = clamp(n('pr-b', 0.3), 0.05, 0.95);
+    let i = clamp(n('pr-i', 0.1), 0, Math.min(a, b));
+    // Keep the slider visually accurate
+    pI.max = Math.min(a, b).toFixed(2);
+    if (+pI.value > +pI.max) pI.value = pI.max;
+    i = +pI.value;
+    av.textContent = a.toFixed(2); bv.textContent = b.toFixed(2); iv.textContent = i.toFixed(2);
 
-    const f = fam.value;
-    let xs, ys, cy, discrete = false, label = '';
+    const union = a + b - i;
+    const cab = b > 0 ? i / b : 0;
+    const cba = a > 0 ? i / a : 0;
+    const indep = Math.abs(i - a * b) < 0.01;
+    setText('pr-u', union.toFixed(3));
+    setText('pr-cab', cab.toFixed(3));
+    setText('pr-cba', cba.toFixed(3));
+    setText('pr-ind', indep ? 'yes (approx.)' : 'no');
 
-    if (f === 'normal') {
-      label = `μ=${a.toFixed(2)}, σ=${b.toFixed(2)}`;
-      const lo = a - 4 * b, hi = a + 4 * b;
-      xs = []; ys = [];
-      for (let i = 0; i <= 200; i++) {
-        const x = lo + (hi - lo) * i / 200;
-        xs.push(x); ys.push(normPDF(x, a, b));
+    // Draw two overlapping circles whose areas are proportional to P(A), P(B)
+    // and whose overlap area ≈ P(A∩B). We use a simple lens-area solver.
+    const cy = h / 2;
+    const TOTAL = Math.min(w, h * 1.8) * 0.42;     // scale area budget
+    const rA = Math.sqrt(a) * TOTAL;
+    const rB = Math.sqrt(b) * TOTAL;
+    const overlap = i;
+    // Find d (distance between centres) such that lens area / (π·rA·rB area) ≈ overlap
+    let d;
+    if (overlap <= 0)                d = rA + rB;
+    else if (overlap >= Math.min(a, b))  d = Math.abs(rA - rB) + 0.5;
+    else {
+      // numeric bisection on overlap area
+      const target = Math.PI * TOTAL * TOTAL * overlap;
+      let lo = Math.abs(rA - rB), hi = rA + rB;
+      for (let k = 0; k < 30; k++) {
+        const mid = (lo + hi) / 2;
+        const aL = lensArea(rA, rB, mid);
+        if (aL > target) lo = mid; else hi = mid;
       }
-      cy = xs.map(x => normCDF((x - a) / b));
-    } else if (f === 'binom') {
-      label = `n=${a.toFixed(0)}, p=${b.toFixed(2)}`;
-      discrete = true;
-      const n = Math.round(a);
-      xs = []; ys = [];
-      let cum = 0; cy = [];
-      for (let k = 0; k <= n; k++) {
-        const p = Math.exp(logComb(n, k) + k * Math.log(b) + (n - k) * Math.log(1 - b));
-        xs.push(k); ys.push(p); cum += p; cy.push(cum);
-      }
-    } else if (f === 'poisson') {
-      label = `λ=${a.toFixed(2)}`;
-      discrete = true;
-      const lam = a;
-      const k_max = Math.max(20, Math.ceil(lam + 4 * Math.sqrt(lam)));
-      xs = []; ys = []; cy = []; let cum = 0;
-      for (let k = 0; k <= k_max; k++) {
-        const p = Math.exp(-lam + k * Math.log(lam) - logGamma(k + 1));
-        xs.push(k); ys.push(p); cum += p; cy.push(cum);
-      }
-    } else if (f === 'expo') {
-      label = `λ=${a.toFixed(2)}`;
-      const lam = a;
-      const hi = 5 / lam;
-      xs = []; ys = []; cy = [];
-      for (let i = 0; i <= 200; i++) {
-        const x = (hi * i) / 200;
-        xs.push(x); ys.push(lam * Math.exp(-lam * x));
-        cy.push(1 - Math.exp(-lam * x));
-      }
-    } else if (f === 'beta') {
-      label = `α=${a.toFixed(2)}, β=${b.toFixed(2)}`;
-      xs = []; ys = [];
-      const norm = Math.exp(logGamma(a + b) - logGamma(a) - logGamma(b));
-      for (let i = 1; i < 200; i++) {
-        const x = i / 200;
-        const v = norm * Math.pow(x, a - 1) * Math.pow(1 - x, b - 1);
-        xs.push(x); ys.push(v);
-      }
-      // Numerical CDF
-      let cum = 0; cy = ys.map(v => (cum += v / 200));
+      d = (lo + hi) / 2;
     }
 
-    const xmin = xs[0], xmax = xs[xs.length - 1];
-    const ymax = Math.max(...ys) * 1.15 || 1;
-    const ax = x => m.l + (x - xmin) / (xmax - xmin) * (w - m.l - m.r);
-    const ay = y => h - m.b - (y / ymax) * (h - m.t - m.b);
+    const cxA = w / 2 - d / 2;
+    const cxB = w / 2 + d / 2;
 
-    axes(ctx, w, h, m, { xLabel: 'x' });
+    // Universe rectangle (P = 1)
+    ctx.strokeStyle = RULE; ctx.lineWidth = 1;
+    ctx.strokeRect(12.5, 12.5, w - 25, h - 25);
+    ctx.fillStyle = MUTED; ctx.textAlign = 'left';
+    ctx.fillText('universe (P = 1)', 18, 24);
 
-    // PDF/PMF
-    if (discrete) {
-      const bw = (w - m.l - m.r) / (xs.length + 1) * 0.8;
-      ctx.fillStyle = ACCENT_SOFT;
-      ctx.strokeStyle = ACCENT;
-      ctx.lineWidth = 1;
-      for (let i = 0; i < xs.length; i++) {
-        const x = ax(xs[i]), y = ay(ys[i]);
-        ctx.fillRect(x - bw / 2, y, bw, h - m.b - y);
-        ctx.strokeRect(x - bw / 2, y, bw, h - m.b - y);
-      }
-    } else {
-      ctx.fillStyle = ACCENT_SOFT;
-      ctx.beginPath();
-      ctx.moveTo(ax(xs[0]), h - m.b);
-      for (let i = 0; i < xs.length; i++) ctx.lineTo(ax(xs[i]), ay(ys[i]));
-      ctx.lineTo(ax(xs[xs.length - 1]), h - m.b);
-      ctx.fill();
-      ctx.strokeStyle = ACCENT; ctx.lineWidth = 2;
-      ctx.beginPath();
-      for (let i = 0; i < xs.length; i++) {
-        const x = ax(xs[i]), y = ay(ys[i]);
-        i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
-      }
-      ctx.stroke();
-    }
+    ctx.fillStyle = 'rgba(67,56,202,0.25)';
+    ctx.beginPath(); ctx.arc(cxA, cy, rA, 0, TAU); ctx.fill();
+    ctx.fillStyle = 'rgba(220,38,38,0.25)';
+    ctx.beginPath(); ctx.arc(cxB, cy, rB, 0, TAU); ctx.fill();
+    ctx.strokeStyle = ACCENT; ctx.lineWidth = 1.4;
+    ctx.beginPath(); ctx.arc(cxA, cy, rA, 0, TAU); ctx.stroke();
+    ctx.strokeStyle = BAD;
+    ctx.beginPath(); ctx.arc(cxB, cy, rB, 0, TAU); ctx.stroke();
 
-    if (cdf.checked) {
-      ctx.strokeStyle = INK; ctx.lineWidth = 1.5;
-      ctx.beginPath();
-      const cmax = 1;
-      const cy_to = y => h - m.b - (y / cmax) * (h - m.t - m.b);
-      for (let i = 0; i < xs.length; i++) {
-        const x = ax(xs[i]), y = cy_to(cy[i]);
-        i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
-      }
-      ctx.stroke();
-      ctx.fillStyle = MUTED; ctx.textAlign = 'right';
-      ctx.fillText('CDF', w - m.r - 4, m.t + 12);
-    }
-
-    ctx.fillStyle = INK_S; ctx.textAlign = 'left';
-    ctx.fillText(label, m.l + 4, m.t + 12);
+    ctx.fillStyle = INK; ctx.textAlign = 'center'; ctx.font = '13px Inter';
+    ctx.fillText('A', cxA - rA + 16, cy - rA + 16);
+    ctx.fillText('B', cxB + rB - 16, cy - rB + 16);
   }
-
-  fam.addEventListener('change', () => { syncParams(fam.value); draw(); });
-  for (const el of [p1, p2, cdf]) el.addEventListener('input', draw);
+  // Closed-form circle-circle lens area
+  function lensArea(r1, r2, d) {
+    if (d >= r1 + r2) return 0;
+    if (d <= Math.abs(r1 - r2)) return Math.PI * Math.min(r1, r2) ** 2;
+    const part = (R, r, D) => R*R * Math.acos((D*D + R*R - r*r) / (2*D*R));
+    const tri  = 0.5 * Math.sqrt((-d + r1 + r2) * (d + r1 - r2) * (d - r1 + r2) * (d + r1 + r2));
+    return part(r1, r2, d) + part(r2, r1, d) - tri;
+  }
+  for (const el of [pA, pB, pI]) el.addEventListener('input', draw);
   window.addEventListener('resize', draw);
   setTimeout(draw, 0);
-})();
+});
 
-// ============================================================
-// 2) Central Limit Theorem
-// ============================================================
-(function demo_clt() {
-  const cv = document.getElementById('cv-clt');
-  const src = document.getElementById('clt-src');
-  const nE  = document.getElementById('clt-n');
-  const mE  = document.getElementById('clt-m');
-  const nV  = document.getElementById('clt-nv');
-  const mV  = document.getElementById('clt-mv');
-  const go  = document.getElementById('clt-go');
+// =============================================================
+// 2) Discrete distributions
+// =============================================================
+mount('disc', () => {
+  const cv = document.getElementById('cv-disc');
+  const fE = document.getElementById('disc-f');
+  const p1 = document.getElementById('disc-p1'), p1v = document.getElementById('disc-p1v'), p1L = document.getElementById('disc-p1-lbl');
+  const p2 = document.getElementById('disc-p2'), p2v = document.getElementById('disc-p2v'), p2L = document.getElementById('disc-p2-lbl');
 
-  function sample(kind) {
-    if (kind === 'uniform') return lcg();
-    if (kind === 'exp')     return -Math.log(Math.max(1e-9, lcg()));
-    if (kind === 'cauchy')  return Math.tan(Math.PI * (lcg() - 0.5));
-    if (kind === 'bimodal') return (lcg() < 0.5 ? -2 : 2) + 0.5 * gauss();
+  // Per-family slider configuration. Keeps a slider in sync with a family
+  // without ever letting a stale value leak from the previous family.
+  const CFG = {
+    bernoulli: { p1: { hidden: true,  v: 0 },                                 p2: { label: 'p',  min: 0.01, max: 0.99, step: 0.01, v: 0.5 } },
+    binomial:  { p1: { label: 'n',    min: 1,    max: 100, step: 1,    v: 20 },p2: { label: 'p',  min: 0.01, max: 0.99, step: 0.01, v: 0.5 } },
+    geometric: { p1: { hidden: true,  v: 0 },                                 p2: { label: 'p',  min: 0.05, max: 0.95, step: 0.01, v: 0.3 } },
+    negbin:    { p1: { label: 'r',    min: 1,    max: 30,  step: 1,    v: 5  },p2: { label: 'p',  min: 0.05, max: 0.95, step: 0.01, v: 0.4 } },
+    poisson:   { p1: { label: 'λ',    min: 0.1,  max: 30,  step: 0.1,  v: 4  },p2: { hidden: true, v: 0 } },
+  };
+
+  function syncSliders(fam) {
+    for (const [el, lbl, lblWrap, cfg] of [
+      [p1, document.querySelector('#disc-p1-lbl'), p1L, CFG[fam].p1],
+      [p2, document.querySelector('#disc-p2-lbl'), p2L, CFG[fam].p2],
+    ]) {
+      if (cfg.hidden) { lbl.style.display = 'none'; continue; }
+      lbl.style.display = '';
+      el.min = cfg.min; el.max = cfg.max; el.step = cfg.step; el.value = cfg.v;
+      // Update the label text (the leading text node)
+      lbl.childNodes[0].nodeValue = cfg.label + ' ';
+    }
   }
-  function moments(kind) {
-    if (kind === 'uniform') return { mu: 0.5, sd: Math.sqrt(1 / 12) };
-    if (kind === 'exp')     return { mu: 1,   sd: 1 };
-    if (kind === 'bimodal') return { mu: 0,   sd: Math.sqrt(4 + 0.25) };
-    return null;                                        // Cauchy: no mean!
+  syncSliders(fE.value);
+
+  function pmf(fam, p1v, p2v) {
+    const xs = [], ys = []; let mu = 0, vr = 0, mode = 0, modeP = -1;
+    function push(x, p) { xs.push(x); ys.push(p); if (p > modeP) { modeP = p; mode = x; } mu += x * p; }
+    if (fam === 'bernoulli') {
+      const p = clamp(p2v, 1e-6, 1 - 1e-6);
+      push(0, 1 - p); push(1, p); mu = p; vr = p * (1 - p);
+    } else if (fam === 'binomial') {
+      const nn = Math.max(1, Math.round(p1v));
+      const p  = clamp(p2v, 1e-6, 1 - 1e-6);
+      for (let k = 0; k <= nn; k++) {
+        const lp = logBin(nn, k) + k * Math.log(p) + (nn - k) * Math.log(1 - p);
+        push(k, safe(Math.exp(lp), 0));
+      }
+      mu = nn * p; vr = nn * p * (1 - p);
+    } else if (fam === 'geometric') {
+      const p = clamp(p2v, 1e-6, 1 - 1e-6);
+      const k_max = Math.min(50, Math.ceil(5 / p));
+      for (let k = 1; k <= k_max; k++) push(k, p * Math.pow(1 - p, k - 1));
+      mu = 1 / p; vr = (1 - p) / (p * p);
+    } else if (fam === 'negbin') {
+      const r = Math.max(1, Math.round(p1v));
+      const p = clamp(p2v, 1e-6, 1 - 1e-6);
+      const k_max = Math.min(80, Math.ceil((r * (1 - p)) / p * 4 + 10));
+      for (let k = 0; k <= k_max; k++) {
+        const lp = logGamma(k + r) - logGamma(k + 1) - logGamma(r) + r * Math.log(p) + k * Math.log(1 - p);
+        push(k, safe(Math.exp(lp), 0));
+      }
+      mu = r * (1 - p) / p; vr = r * (1 - p) / (p * p);
+    } else if (fam === 'poisson') {
+      const lam = Math.max(0.01, p1v);
+      const k_max = Math.max(20, Math.ceil(lam + 4 * Math.sqrt(lam)));
+      for (let k = 0; k <= k_max; k++) {
+        const lp = -lam + k * Math.log(lam) - logGamma(k + 1);
+        push(k, safe(Math.exp(lp), 0));
+      }
+      mu = lam; vr = lam;
+    }
+    return { xs, ys, mu, vr, mode };
   }
 
   function draw() {
-    const { ctx, w, h } = setupCanvas(cv);
+    const { ctx, w, h } = fitCanvas(cv);
     ctx.clearRect(0, 0, w, h);
-    const m = { l: 32, r: 12, t: 14, b: 24 };
-    const n = +nE.value, M = +mE.value;
-    nV.textContent = n; mV.textContent = M;
-    const kind = src.value;
+    const fam = fE.value;
+    const p1Cfg = CFG[fam].p1, p2Cfg = CFG[fam].p2;
+    const a = p1Cfg.hidden ? 0 : n('disc-p1', p1Cfg.v ?? 0);
+    const b = p2Cfg.hidden ? 0 : n('disc-p2', p2Cfg.v ?? 0);
+    p1v.textContent = p1Cfg.hidden ? '—' : (p1Cfg.step >= 1 ? Math.round(a) : a.toFixed(2));
+    p2v.textContent = p2Cfg.hidden ? '—' : (p2Cfg.step >= 1 ? Math.round(b) : b.toFixed(2));
 
-    // Collect M sample means of size n
-    const means = new Float64Array(M);
-    for (let i = 0; i < M; i++) {
-      let s = 0;
-      for (let j = 0; j < n; j++) s += sample(kind);
-      means[i] = s / n;
-    }
-    // Use 1–99 percentile range to clip Cauchy's extremes
-    const sorted = Array.from(means).sort((a, b) => a - b);
-    const lo = sorted[Math.floor(M * 0.01)] ?? -3;
-    const hi = sorted[Math.floor(M * 0.99)] ?? 3;
-    const bins = 40;
-    const counts = new Float64Array(bins);
-    for (const x of means) {
-      if (x < lo || x > hi) continue;
-      const k = Math.min(bins - 1, Math.floor((x - lo) / (hi - lo) * bins));
-      counts[k]++;
-    }
-    const cmax = Math.max(...counts);
-    const bw = (w - m.l - m.r) / bins;
-    axes(ctx, w, h, m, { xLabel: 'sample mean' });
+    const { xs, ys, mu, vr, mode } = pmf(fam, a, b);
+    setText('disc-mean', mu.toFixed(3));
+    setText('disc-var',  vr.toFixed(3));
+    setText('disc-mode', mode.toString());
 
-    ctx.fillStyle = ACCENT_SOFT; ctx.strokeStyle = ACCENT; ctx.lineWidth = 1;
-    for (let i = 0; i < bins; i++) {
-      const x = m.l + i * bw;
-      const y = h - m.b - (counts[i] / cmax) * (h - m.t - m.b);
-      ctx.fillRect(x, y, bw - 1, h - m.b - y);
-    }
-
-    // Overlay theoretical normal if defined
-    const mom = moments(kind);
-    if (mom) {
-      const sd = mom.sd / Math.sqrt(n);
-      ctx.strokeStyle = INK; ctx.lineWidth = 1.5;
-      ctx.beginPath();
-      for (let i = 0; i <= 100; i++) {
-        const x = lo + (hi - lo) * i / 100;
-        const pdf = normPDF(x, mom.mu, sd);
-        // Convert PDF -> expected count: M * pdf * binWidth
-        const expCount = M * pdf * ((hi - lo) / bins);
-        const px = m.l + (x - lo) / (hi - lo) * (w - m.l - m.r);
-        const py = h - m.b - (expCount / cmax) * (h - m.t - m.b);
-        i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
+    const m = { l: 36, r: 12, t: 16, b: 26 };
+    axes(ctx, w, h, m, { x: 'k' });
+    const ymax = robustMax(ys);
+    const bw = (w - m.l - m.r) / Math.max(1, xs.length);
+    for (let i = 0; i < xs.length; i++) {
+      const y = safe(ys[i], 0);
+      const px = m.l + (i + 0.5) * bw;
+      const py = h - m.b - (y / ymax) * (h - m.t - m.b);
+      const isMode = xs[i] === mode;
+      ctx.fillStyle = isMode ? ACCENT : ACCENT_S;
+      ctx.fillRect(px - bw * 0.4, py, bw * 0.8, h - m.b - py);
+      // x ticks (sparse)
+      if (xs.length <= 30 || i % Math.ceil(xs.length / 12) === 0) {
+        ctx.fillStyle = MUTED; ctx.textAlign = 'center'; ctx.font = '10px JetBrains Mono';
+        ctx.fillText(xs[i], px, h - m.b + 12);
       }
-      ctx.stroke();
-      ctx.fillStyle = INK_S; ctx.textAlign = 'right';
-      ctx.fillText(`N(${mom.mu.toFixed(2)}, σ²/n)`, w - m.r - 4, m.t + 12);
-    } else {
-      ctx.fillStyle = BAD; ctx.textAlign = 'right';
-      ctx.fillText('Cauchy: no mean — CLT fails', w - m.r - 4, m.t + 12);
+    }
+    // E[X] marker
+    if (Number.isFinite(mu)) {
+      const ex = m.l + ((mu - (xs[0] ?? 0)) / Math.max(1, xs.length - 1)) * (w - m.l - m.r) + bw / 2;
+      ctx.strokeStyle = INK; ctx.setLineDash([3, 3]); ctx.beginPath();
+      ctx.moveTo(ex, m.t); ctx.lineTo(ex, h - m.b); ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle = INK; ctx.textAlign = 'left'; ctx.font = '10px JetBrains Mono';
+      ctx.fillText(`E[X] = ${mu.toFixed(2)}`, ex + 4, m.t + 12);
     }
   }
-  for (const el of [src, nE, mE, go]) el.addEventListener('input', draw);
+  fE.addEventListener('change', () => { syncSliders(fE.value); draw(); });
+  for (const el of [p1, p2]) el.addEventListener('input', draw);
+  window.addEventListener('resize', draw);
+  setTimeout(draw, 0);
+});
+
+// =============================================================
+// 3) Continuous distributions
+// =============================================================
+mount('cont', () => {
+  const cv = document.getElementById('cv-cont');
+  const fE = document.getElementById('cont-f');
+  const p1 = document.getElementById('cont-p1'), p1v = document.getElementById('cont-p1v'), p1L = document.getElementById('cont-p1-lbl');
+  const p2 = document.getElementById('cont-p2'), p2v = document.getElementById('cont-p2v'), p2L = document.getElementById('cont-p2-lbl');
+  const cdfE = document.getElementById('cont-cdf');
+
+  const CFG = {
+    uniform:     { p1: { label: 'a',  min: -4, max: 2,  step: 0.05, v: 0  }, p2: { label: 'b', min: -2, max: 6,  step: 0.05, v: 1  } },
+    normal:      { p1: { label: 'μ',  min: -3, max: 3,  step: 0.05, v: 0  }, p2: { label: 'σ', min: 0.1, max: 3,  step: 0.05, v: 1  } },
+    exponential: { p1: { label: 'λ',  min: 0.1, max: 5, step: 0.05, v: 1  }, p2: { hidden: true } },
+    gamma:       { p1: { label: 'k',  min: 0.5, max: 12, step: 0.1, v: 2  }, p2: { label: 'θ', min: 0.2, max: 5, step: 0.05, v: 1  } },
+    beta:        { p1: { label: 'α',  min: 0.5, max: 10, step: 0.1, v: 2  }, p2: { label: 'β', min: 0.5, max: 10, step: 0.1, v: 5  } },
+    chi2:        { p1: { label: 'k',  min: 1,  max: 30,  step: 1,    v: 4  }, p2: { hidden: true } },
+  };
+
+  function syncSliders(fam) {
+    for (const [el, lbl, cfg] of [
+      [p1, document.querySelector('#cont-p1-lbl'), CFG[fam].p1],
+      [p2, document.querySelector('#cont-p2-lbl'), CFG[fam].p2],
+    ]) {
+      if (cfg.hidden) { lbl.style.display = 'none'; continue; }
+      lbl.style.display = '';
+      el.min = cfg.min; el.max = cfg.max; el.step = cfg.step; el.value = cfg.v;
+      lbl.childNodes[0].nodeValue = cfg.label + ' ';
+    }
+  }
+  syncSliders(fE.value);
+
+  function range(fam, a, b) {
+    if (fam === 'uniform')     return [Math.min(a, b) - 0.5, Math.max(a, b) + 0.5];
+    if (fam === 'normal')      return [a - 4 * b, a + 4 * b];
+    if (fam === 'exponential') return [0, 7 / Math.max(0.01, a)];
+    if (fam === 'gamma')       return [0, a * b * 4 + 4 * Math.sqrt(a) * b];
+    if (fam === 'beta')        return [0, 1];
+    if (fam === 'chi2')        return [0, a + 4 * Math.sqrt(2 * a)];
+  }
+  function pdf(fam, x, a, b) {
+    if (fam === 'uniform') {
+      const lo = Math.min(a, b), hi = Math.max(a, b);
+      return (x >= lo && x <= hi && hi > lo) ? 1 / (hi - lo) : 0;
+    }
+    if (fam === 'normal')      return npdf(x, a, b);
+    if (fam === 'exponential') return x < 0 ? 0 : a * Math.exp(-a * x);
+    if (fam === 'gamma') {
+      if (x <= 0) return 0;
+      const lp = (a - 1) * Math.log(x) - x / b - a * Math.log(b) - logGamma(a);
+      return safe(Math.exp(lp), 0);
+    }
+    if (fam === 'beta') {
+      if (x <= 0 || x >= 1) return 0;
+      const lp = (a - 1) * Math.log(x) + (b - 1) * Math.log(1 - x) + logGamma(a + b) - logGamma(a) - logGamma(b);
+      return safe(Math.exp(lp), 0);
+    }
+    if (fam === 'chi2') {
+      if (x <= 0) return 0;
+      const k2 = a / 2;
+      const lp = (k2 - 1) * Math.log(x) - x / 2 - k2 * Math.log(2) - logGamma(k2);
+      return safe(Math.exp(lp), 0);
+    }
+    return 0;
+  }
+  function moments(fam, a, b) {
+    if (fam === 'uniform')     { const lo = Math.min(a, b), hi = Math.max(a, b); return { mu: (lo + hi) / 2, vr: (hi - lo) ** 2 / 12 }; }
+    if (fam === 'normal')      return { mu: a, vr: b * b };
+    if (fam === 'exponential') return { mu: 1 / a, vr: 1 / (a * a) };
+    if (fam === 'gamma')       return { mu: a * b, vr: a * b * b };
+    if (fam === 'beta')        return { mu: a / (a + b), vr: a * b / ((a + b) ** 2 * (a + b + 1)) };
+    if (fam === 'chi2')        return { mu: a, vr: 2 * a };
+    return { mu: 0, vr: 0 };
+  }
+
+  function draw() {
+    const { ctx, w, h } = fitCanvas(cv);
+    ctx.clearRect(0, 0, w, h);
+    const fam = fE.value;
+    const p1Cfg = CFG[fam].p1, p2Cfg = CFG[fam].p2;
+    const a = p1Cfg.hidden ? 0 : n('cont-p1', p1Cfg.v ?? 0);
+    const b = p2Cfg.hidden ? 0 : n('cont-p2', p2Cfg.v ?? 0);
+    p1v.textContent = p1Cfg.hidden ? '—' : (p1Cfg.step >= 1 ? Math.round(a) : a.toFixed(2));
+    p2v.textContent = p2Cfg.hidden ? '—' : (p2Cfg.step >= 1 ? Math.round(b) : b.toFixed(2));
+
+    const [lo, hi] = range(fam, a, b);
+    const SAMPLES = 400;
+    const xs = []; const ys = []; const ycdf = [];
+    let cum = 0; const dx = (hi - lo) / SAMPLES;
+    for (let i = 0; i <= SAMPLES; i++) {
+      const x = lo + dx * i;
+      const y = safe(pdf(fam, x, a, b), 0);
+      xs.push(x); ys.push(y);
+      cum += y * dx; ycdf.push(Math.min(1, cum));
+    }
+    const ymax = robustMax(ys);
+    const M = moments(fam, a, b);
+    setText('cont-mean', Number.isFinite(M.mu) ? M.mu.toFixed(3) : '∞');
+    setText('cont-var',  Number.isFinite(M.vr) ? M.vr.toFixed(3) : '∞');
+
+    const m = { l: 36, r: 12, t: 16, b: 26 };
+    axes(ctx, w, h, m, { x: 'x' });
+    const ax = x => m.l + (x - lo) / Math.max(1e-9, hi - lo) * (w - m.l - m.r);
+    const ay = y => h - m.b - (y / ymax) * (h - m.t - m.b);
+
+    // PDF fill
+    ctx.fillStyle = ACCENT_S;
+    ctx.beginPath();
+    ctx.moveTo(ax(xs[0]), ay(0));
+    for (let i = 0; i < xs.length; i++) ctx.lineTo(ax(xs[i]), ay(ys[i]));
+    ctx.lineTo(ax(xs[xs.length - 1]), ay(0));
+    ctx.closePath(); ctx.fill();
+    // PDF stroke
+    ctx.strokeStyle = ACCENT; ctx.lineWidth = 2;
+    ctx.beginPath();
+    for (let i = 0; i < xs.length; i++) i ? ctx.lineTo(ax(xs[i]), ay(ys[i])) : ctx.moveTo(ax(xs[i]), ay(ys[i]));
+    ctx.stroke();
+
+    // E[X] line
+    if (Number.isFinite(M.mu) && M.mu >= lo && M.mu <= hi) {
+      ctx.strokeStyle = INK; ctx.setLineDash([3, 3]); ctx.beginPath();
+      ctx.moveTo(ax(M.mu), m.t); ctx.lineTo(ax(M.mu), h - m.b); ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle = INK; ctx.textAlign = 'left'; ctx.font = '10px JetBrains Mono';
+      ctx.fillText(`E[X] = ${M.mu.toFixed(2)}`, ax(M.mu) + 4, m.t + 12);
+    }
+    // CDF overlay
+    if (cdfE.checked) {
+      const cay = y => h - m.b - y * (h - m.t - m.b);
+      ctx.strokeStyle = INK; ctx.lineWidth = 1.4;
+      ctx.beginPath();
+      for (let i = 0; i < xs.length; i++) i ? ctx.lineTo(ax(xs[i]), cay(ycdf[i])) : ctx.moveTo(ax(xs[i]), cay(ycdf[i]));
+      ctx.stroke();
+      ctx.fillStyle = INK_S; ctx.textAlign = 'right';
+      ctx.fillText('CDF', w - m.r - 4, m.t + 12);
+    }
+  }
+  fE.addEventListener('change', () => { syncSliders(fE.value); draw(); });
+  for (const el of [p1, p2, cdfE]) el.addEventListener('input', draw);
+  window.addEventListener('resize', draw);
+  setTimeout(draw, 0);
+});
+
+// =============================================================
+// 4) Convolution — density of X+Y by Monte Carlo
+// =============================================================
+mount('sum', () => {
+  const cv = document.getElementById('cv-sum');
+  const xE = document.getElementById('sum-x');
+  const yE = document.getElementById('sum-y');
+  const go = document.getElementById('sum-go');
+
+  const SAMPLERS = {
+    uniform: () => Math.random(),
+    normal:  () => gauss(),
+    exp:     () => expRV(1),
+    tri:     () => Math.random() + Math.random() - 1,
+  };
+  const RANGES = { uniform: [0, 1], normal: [-3, 3], exp: [0, 5], tri: [-1, 1] };
+
+  function rangeFor(kx, ky) {
+    const [a, b] = RANGES[kx], [c, d] = RANGES[ky];
+    return [a + c, b + d];
+  }
+
+  function draw() {
+    const { ctx, w, h } = fitCanvas(cv);
+    ctx.clearRect(0, 0, w, h);
+    const kx = xE.value, ky = yE.value;
+    const [lo, hi] = rangeFor(kx, ky);
+    const bins = 60, N = 20000;
+    const hist = new Float64Array(bins);
+    for (let i = 0; i < N; i++) {
+      const s = SAMPLERS[kx]() + SAMPLERS[ky]();
+      if (s < lo || s > hi) continue;
+      const k = Math.min(bins - 1, Math.floor((s - lo) / (hi - lo) * bins));
+      hist[k]++;
+    }
+    const cmax = robustMax(Array.from(hist));
+    const m = { l: 30, r: 12, t: 16, b: 24 };
+    axes(ctx, w, h, m, { x: 'x + y' });
+    const bw = (w - m.l - m.r) / bins;
+    for (let i = 0; i < bins; i++) {
+      const x = m.l + i * bw;
+      const y = h - m.b - (hist[i] / cmax) * (h - m.t - m.b);
+      ctx.fillStyle = ACCENT_S; ctx.fillRect(x, y, bw - 0.5, h - m.b - y);
+    }
+    // X-axis ticks
+    ctx.fillStyle = MUTED; ctx.font = '10px JetBrains Mono'; ctx.textAlign = 'center';
+    for (let k = 0; k <= 5; k++) {
+      const xv = lo + (hi - lo) * k / 5;
+      ctx.fillText(xv.toFixed(1), m.l + (k / 5) * (w - m.l - m.r), h - m.b + 12);
+    }
+    ctx.fillStyle = INK; ctx.textAlign = 'left';
+    ctx.fillText(`${kx} + ${ky}`, m.l + 4, m.t + 12);
+  }
+  for (const el of [xE, yE, go]) el.addEventListener('input', draw);
   go.addEventListener('click', draw);
   window.addEventListener('resize', draw);
   setTimeout(draw, 0);
-})();
+});
 
-// ============================================================
-// 3) Bayes — 100-square grid
-// ============================================================
-(function demo_bayes() {
-  const cv  = document.getElementById('cv-bayes');
-  const pr  = document.getElementById('bay-prior');
-  const sn  = document.getElementById('bay-sens');
-  const sp  = document.getElementById('bay-spec');
-  const pv  = document.getElementById('bay-pv'), sv = document.getElementById('bay-sv'), tv = document.getElementById('bay-tv');
-  const post = document.getElementById('bay-post');
+// =============================================================
+// 5) Central Limit Theorem
+// =============================================================
+mount('clt', () => {
+  const cv = document.getElementById('cv-clt');
+  const src = document.getElementById('clt-src');
+  const nE = document.getElementById('clt-n'),  nV = document.getElementById('clt-nv');
+  const mE = document.getElementById('clt-m'),  mV = document.getElementById('clt-mv');
+  const go = document.getElementById('clt-go');
+
+  const SAMPLE = {
+    uniform: () => Math.random(),
+    exp:     () => -Math.log(Math.max(1e-12, Math.random())),
+    bimodal: () => (Math.random() < 0.5 ? -2 : 2) + 0.5 * gauss(),
+    cauchy:  () => Math.tan(Math.PI * (Math.random() - 0.5)),
+  };
+  const MOMENTS = {
+    uniform: { mu: 0.5, sd: Math.sqrt(1 / 12) },
+    exp:     { mu: 1,   sd: 1 },
+    bimodal: { mu: 0,   sd: Math.sqrt(4 + 0.25) },
+    cauchy:  null,
+  };
 
   function draw() {
-    const { ctx, w, h } = setupCanvas(cv);
+    const { ctx, w, h } = fitCanvas(cv);
     ctx.clearRect(0, 0, w, h);
-    const P = +pr.value, S = +sn.value, T = +sp.value;
-    pv.textContent = P.toFixed(3); sv.textContent = S.toFixed(2); tv.textContent = T.toFixed(2);
+    const m = { l: 32, r: 12, t: 16, b: 24 };
+    const nn = Math.max(1, Math.round(n('clt-n', 10)));
+    const M  = Math.max(100, Math.round(n('clt-m', 2000)));
+    nV.textContent = nn; mV.textContent = M;
+    const kind = src.value;
+
+    const means = new Float64Array(M);
+    for (let i = 0; i < M; i++) {
+      let s = 0;
+      for (let j = 0; j < nn; j++) s += SAMPLE[kind]();
+      means[i] = s / nn;
+    }
+    // Use 1–99 percentile range to avoid Cauchy's tails wrecking the axis
+    const sorted = Array.from(means).filter(Number.isFinite).sort((a, b) => a - b);
+    if (!sorted.length) return;
+    const lo = sorted[Math.floor(sorted.length * 0.01)];
+    const hi = sorted[Math.floor(sorted.length * 0.99)];
+    const span = Math.max(1e-6, hi - lo);
+    const bins = 40;
+    const counts = new Float64Array(bins);
+    for (const x of means) {
+      if (!Number.isFinite(x) || x < lo || x > hi) continue;
+      const k = Math.min(bins - 1, Math.floor((x - lo) / span * bins));
+      counts[k]++;
+    }
+    const cmax = robustMax(Array.from(counts));
+    const bw = (w - m.l - m.r) / bins;
+    axes(ctx, w, h, m, { x: 'sample mean' });
+    for (let i = 0; i < bins; i++) {
+      const x = m.l + i * bw;
+      const y = h - m.b - (counts[i] / cmax) * (h - m.t - m.b);
+      ctx.fillStyle = ACCENT_S; ctx.fillRect(x, y, bw - 0.5, h - m.b - y);
+    }
+    const mom = MOMENTS[kind];
+    if (mom) {
+      const sd = mom.sd / Math.sqrt(nn);
+      ctx.strokeStyle = INK; ctx.lineWidth = 1.6;
+      ctx.beginPath();
+      for (let i = 0; i <= 200; i++) {
+        const x = lo + span * i / 200;
+        const expCount = M * npdf(x, mom.mu, sd) * (span / bins);
+        const px = m.l + (x - lo) / span * (w - m.l - m.r);
+        const py = h - m.b - (expCount / cmax) * (h - m.t - m.b);
+        i ? ctx.lineTo(px, py) : ctx.moveTo(px, py);
+      }
+      ctx.stroke();
+      ctx.fillStyle = INK_S; ctx.textAlign = 'right'; ctx.font = '10px JetBrains Mono';
+      ctx.fillText(`N(${mom.mu.toFixed(2)}, ${(mom.sd / Math.sqrt(nn)).toFixed(2)}²)`, w - m.r - 4, m.t + 12);
+    } else {
+      ctx.fillStyle = BAD; ctx.textAlign = 'right';
+      ctx.fillText('Cauchy: no mean — CLT does not apply', w - m.r - 4, m.t + 12);
+    }
+  }
+  for (const el of [src, nE, mE]) el.addEventListener('input', draw);
+  go.addEventListener('click', draw);
+  window.addEventListener('resize', draw);
+  setTimeout(draw, 0);
+});
+
+// =============================================================
+// 6) Bayes
+// =============================================================
+mount('bayes', () => {
+  const cv = document.getElementById('cv-bayes');
+  function draw() {
+    const { ctx, w, h } = fitCanvas(cv);
+    ctx.clearRect(0, 0, w, h);
+    const P = clamp(n('bay-prior', 0.05), 0.001, 0.5);
+    const S = clamp(n('bay-sens', 0.95), 0.5, 1);
+    const T = clamp(n('bay-spec', 0.92), 0.5, 1);
+    setText('bay-pv', P.toFixed(3));
+    setText('bay-sv', S.toFixed(2));
+    setText('bay-tv', T.toFixed(2));
 
     const N = 1000;
-    const D = Math.round(N * P);          // diseased
+    const D = Math.round(N * P);
     const ND = N - D;
     const TP = Math.round(D * S);
     const FN = D - TP;
     const FP = Math.round(ND * (1 - T));
     const TN = ND - FP;
-    const postP = (TP + FP) > 0 ? TP / (TP + FP) : 0;
-    post.textContent = (postP * 100).toFixed(1) + '%';
+    const post  = (TP + FP) > 0 ? TP / (TP + FP) : 0;
+    const postn = (TN + FN) > 0 ? FN / (TN + FN) : 0;
+    setText('bay-post',  (post  * 100).toFixed(1) + '%');
+    setText('bay-postn', (postn * 100).toFixed(2) + '%');
 
-    // Render 100 squares -> each square = 10 people
-    const cols = 40, rows = 25;
-    const cell = Math.min((w - 90) / cols, (h - 20) / rows);
-    const x0 = 8, y0 = 10;
-
-    const grid = []; // 0=TN, 1=TP, 2=FP, 3=FN
+    const cols = 40, rows = 25, x0 = 8, y0 = 6;
+    const cell = Math.min((w - 130) / cols, (h - 14) / rows);
+    const grid = [];
     for (let i = 0; i < TN; i++) grid.push(0);
     for (let i = 0; i < TP; i++) grid.push(1);
     for (let i = 0; i < FP; i++) grid.push(2);
     for (let i = 0; i < FN; i++) grid.push(3);
-    // Keep order so colours form bands.
     const COLOR = ['#E5E5EA', GOOD, WARN, BAD];
-
     for (let i = 0; i < N; i++) {
       const c = i % cols, r = Math.floor(i / cols);
       ctx.fillStyle = COLOR[grid[i]];
       ctx.fillRect(x0 + c * cell + 0.5, y0 + r * cell + 0.5, cell - 1.5, cell - 1.5);
     }
-
-    // Legend
     const lx = x0 + cols * cell + 14, ly = y0 + 4;
     const legend = [
-      ['true neg.', COLOR[0], TN],
-      ['caught (TP)', GOOD, TP],
-      ['false alarm (FP)', WARN, FP],
-      ['missed (FN)', BAD, FN],
+      ['true neg.',         COLOR[0], TN],
+      ['caught (TP)',       GOOD,     TP],
+      ['false alarm (FP)',  WARN,     FP],
+      ['missed (FN)',       BAD,      FN],
     ];
-    ctx.font = '11px Inter, sans-serif';
+    ctx.font = '11px Inter';
     legend.forEach((row, i) => {
       const y = ly + i * 22;
-      ctx.fillStyle = row[1];
-      ctx.fillRect(lx, y, 10, 10);
-      ctx.fillStyle = INK; ctx.textAlign = 'left';
+      ctx.fillStyle = row[1]; ctx.fillRect(lx, y, 10, 10);
+      ctx.fillStyle = INK;   ctx.textAlign = 'left';
       ctx.fillText(row[0], lx + 16, y + 9);
       ctx.fillStyle = INK_S;
       ctx.fillText(`${row[2]} / ${N}`, lx + 16, y + 22);
     });
   }
-  for (const el of [pr, sn, sp]) el.addEventListener('input', draw);
+  for (const id of ['bay-prior', 'bay-sens', 'bay-spec']) document.getElementById(id).addEventListener('input', draw);
   window.addEventListener('resize', draw);
   setTimeout(draw, 0);
-})();
+});
 
-// ============================================================
-// 4) Confidence intervals
-// ============================================================
-(function demo_ci() {
+// =============================================================
+// 7) Maximum Likelihood
+// =============================================================
+mount('mle', () => {
+  const cv = document.getElementById('cv-mle');
+  const mE = document.getElementById('mle-m');
+  const pE = document.getElementById('mle-p'), pv = document.getElementById('mle-pv');
+  const re = document.getElementById('mle-resample');
+
+  const MODELS = {
+    'normal-mu':   { sample: () => gauss(0.7, 1),  range: [-3, 3], label: 'μ',
+                     ll: (data, mu) => -0.5 * data.reduce((s, x) => s + (x - mu) ** 2, 0) - 0.5 * data.length * Math.log(2 * Math.PI) },
+    'bernoulli-p': { sample: () => Math.random() < 0.35 ? 1 : 0, range: [0.01, 0.99], label: 'p',
+                     ll: (data, p) => data.reduce((s, x) => s + (x ? Math.log(p) : Math.log(1 - p)), 0) },
+    'exp-lam':     { sample: () => expRV(2),       range: [0.1, 5],  label: 'λ',
+                     ll: (data, lam) => data.length * Math.log(lam) - lam * data.reduce((s, x) => s + x, 0) },
+  };
+  let data = [];
+  function resample() {
+    data = []; const M = MODELS[mE.value];
+    for (let i = 0; i < 30; i++) data.push(M.sample());
+  }
+  resample();
+
+  function setupSlider() {
+    const M = MODELS[mE.value];
+    pE.min = M.range[0]; pE.max = M.range[1]; pE.step = (M.range[1] - M.range[0]) / 200;
+    pE.value = (M.range[0] + M.range[1]) / 2;
+  }
+  setupSlider();
+
+  function draw() {
+    const { ctx, w, h } = fitCanvas(cv);
+    ctx.clearRect(0, 0, w, h);
+    const M = MODELS[mE.value];
+    const p = clamp(n('mle-p', (M.range[0] + M.range[1]) / 2), M.range[0], M.range[1]);
+    pv.textContent = p.toFixed(3);
+
+    // Sweep parameter
+    const N = 200;
+    const xs = [], ys = [];
+    let best = -Infinity, bestP = M.range[0];
+    for (let i = 0; i <= N; i++) {
+      const pp = M.range[0] + (M.range[1] - M.range[0]) * i / N;
+      const ll = M.ll(data, pp);
+      xs.push(pp); ys.push(ll);
+      if (ll > best) { best = ll; bestP = pp; }
+    }
+    const ymin = Math.min(...ys.filter(Number.isFinite)), ymax = Math.max(...ys.filter(Number.isFinite));
+    if (!Number.isFinite(ymin) || !Number.isFinite(ymax)) return;
+    setText('mle-best', `${M.label} = ${bestP.toFixed(3)}`);
+    setText('mle-ll',   M.ll(data, p).toFixed(2));
+
+    const m = { l: 40, r: 12, t: 16, b: 26 };
+    axes(ctx, w, h, m, { x: M.label, y: 'log L' });
+    const ax = x => m.l + (x - M.range[0]) / (M.range[1] - M.range[0]) * (w - m.l - m.r);
+    const ay = y => h - m.b - (y - ymin) / Math.max(1e-9, ymax - ymin) * (h - m.t - m.b);
+
+    // log-likelihood curve
+    ctx.strokeStyle = ACCENT; ctx.lineWidth = 2;
+    ctx.beginPath();
+    for (let i = 0; i < xs.length; i++) i ? ctx.lineTo(ax(xs[i]), ay(ys[i])) : ctx.moveTo(ax(xs[i]), ay(ys[i]));
+    ctx.stroke();
+
+    // MLE marker
+    ctx.strokeStyle = INK; ctx.setLineDash([3, 3]); ctx.beginPath();
+    ctx.moveTo(ax(bestP), m.t); ctx.lineTo(ax(bestP), h - m.b); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = INK; ctx.beginPath(); ctx.arc(ax(bestP), ay(best), 4, 0, TAU); ctx.fill();
+    ctx.textAlign = 'center'; ctx.font = '10px JetBrains Mono';
+    ctx.fillText('MLE', ax(bestP), m.t + 12);
+
+    // Current parameter marker
+    ctx.fillStyle = WARN; ctx.beginPath(); ctx.arc(ax(p), ay(M.ll(data, p)), 5, 0, TAU); ctx.fill();
+  }
+  mE.addEventListener('change', () => { resample(); setupSlider(); draw(); });
+  pE.addEventListener('input', draw);
+  re.addEventListener('click', () => { resample(); draw(); });
+  window.addEventListener('resize', draw);
+  setTimeout(draw, 0);
+});
+
+// =============================================================
+// 8) Confidence intervals
+// =============================================================
+mount('ci', () => {
   const cv = document.getElementById('cv-ci');
-  const nE = document.getElementById('ci-n');
-  const lE = document.getElementById('ci-l');
-  const nV = document.getElementById('ci-nv');
-  const lV = document.getElementById('ci-lv');
+  const nE = document.getElementById('ci-n'), nV = document.getElementById('ci-nv');
+  const lE = document.getElementById('ci-l'), lV = document.getElementById('ci-lv');
   const go = document.getElementById('ci-go');
   const cov = document.getElementById('ci-cov');
 
-  function zStar(level) {
-    // Inverse normal CDF for (1+level)/2 via Newton on erf
-    let z = 1.96, target = (1 + level) / 2;
-    for (let i = 0; i < 50; i++) {
-      const f = normCDF(z) - target;
-      const df = normPDF(z, 0, 1);
-      z -= f / df;
-    }
-    return z;
-  }
-
   function draw() {
-    const { ctx, w, h } = setupCanvas(cv);
+    const { ctx, w, h } = fitCanvas(cv);
     ctx.clearRect(0, 0, w, h);
     const m = { l: 38, r: 12, t: 14, b: 24 };
-    const n = +nE.value, lev = +lE.value;
-    nV.textContent = n; lV.textContent = lev.toFixed(2);
-
+    const nn = Math.max(2, Math.round(n('ci-n', 12)));
+    const lev = clamp(n('ci-l', 0.95), 0.5, 0.999);
+    nV.textContent = nn; lV.textContent = lev.toFixed(2);
     const reps = 100;
-    const z = zStar(lev);
+    const z = zstar(lev);
     let covered = 0;
-
-    // Generate intervals + draw them
     const intervals = [];
     for (let i = 0; i < reps; i++) {
       let sum = 0, sq = 0;
-      for (let j = 0; j < n; j++) { const x = gauss(); sum += x; sq += x * x; }
-      const mean = sum / n;
-      const sd = Math.sqrt(Math.max(1e-9, (sq - n * mean * mean) / Math.max(1, n - 1)));
-      const half = z * sd / Math.sqrt(n);
+      for (let j = 0; j < nn; j++) { const x = gauss(); sum += x; sq += x * x; }
+      const mean = sum / nn;
+      const sd = Math.sqrt(Math.max(1e-9, (sq - nn * mean * mean) / Math.max(1, nn - 1)));
+      const half = z * sd / Math.sqrt(nn);
       intervals.push([mean - half, mean + half]);
-      if (-0 >= mean - half && -0 <= mean + half) covered++;
+      if (0 >= mean - half && 0 <= mean + half) covered++;
     }
     cov.textContent = `${covered}/${reps}`;
-
-    // Determine x range (rounded to ±3/√n)
-    const lim = Math.max(2, 4 / Math.sqrt(n));
+    const lim = Math.max(2, 4 / Math.sqrt(nn));
     const ax = x => m.l + (x + lim) / (2 * lim) * (w - m.l - m.r);
-    axes(ctx, w, h, m, { xLabel: 'value' });
-
-    // Reference line at 0
+    axes(ctx, w, h, m, { x: 'value' });
     ctx.strokeStyle = INK; ctx.setLineDash([3, 3]); ctx.beginPath();
     ctx.moveTo(ax(0), m.t); ctx.lineTo(ax(0), h - m.b); ctx.stroke();
     ctx.setLineDash([]);
-
     const slot = (h - m.t - m.b) / reps;
     for (let i = 0; i < reps; i++) {
       const y = m.t + slot * (i + 0.5);
       const [lo, hi] = intervals[i];
       const covers = lo <= 0 && hi >= 0;
-      ctx.strokeStyle = covers ? ACCENT : BAD;
-      ctx.lineWidth = 1.5;
+      ctx.strokeStyle = covers ? ACCENT : BAD; ctx.lineWidth = 1.5;
       ctx.beginPath(); ctx.moveTo(ax(lo), y); ctx.lineTo(ax(hi), y); ctx.stroke();
     }
   }
@@ -472,26 +809,23 @@ function axes(ctx, w, h, m, opts = {}) {
   go.addEventListener('click', draw);
   window.addEventListener('resize', draw);
   setTimeout(draw, 0);
-})();
+});
 
-// ============================================================
-// 5) Hypothesis test
-// ============================================================
-(function demo_ht() {
+// =============================================================
+// 9) Hypothesis test + p-value
+// =============================================================
+mount('ht', () => {
   const cv = document.getElementById('cv-ht');
-  const d  = document.getElementById('ht-d');
-  const c  = document.getElementById('ht-c');
-  const dv = document.getElementById('ht-dv'), cv2 = document.getElementById('ht-cv');
-  const a  = document.getElementById('ht-a');
-  const b  = document.getElementById('ht-b');
-  const pw = document.getElementById('ht-p');
-
   function draw() {
-    const { ctx, w, h } = setupCanvas(cv);
+    const { ctx, w, h } = fitCanvas(cv);
     ctx.clearRect(0, 0, w, h);
-    const m = { l: 28, r: 12, t: 14, b: 24 };
-    const delta = +d.value, thr = +c.value;
-    dv.textContent = delta.toFixed(2); cv2.textContent = thr.toFixed(2);
+    const m = { l: 28, r: 12, t: 16, b: 26 };
+    const delta = clamp(n('ht-d', 2), 0, 5);
+    const thr   = clamp(n('ht-c', 1.64), -2, 6);
+    const zobs  = clamp(n('ht-z', 2.1), -3, 6);
+    setText('ht-dv', delta.toFixed(2));
+    setText('ht-cv', thr.toFixed(2));
+    setText('ht-zv', zobs.toFixed(2));
 
     const lo = Math.min(-4, -4 + delta - 2);
     const hi = Math.max(4, delta + 4);
@@ -499,19 +833,21 @@ function axes(ctx, w, h, m, opts = {}) {
     const ymax = 0.45;
     const ay = y => h - m.b - (y / ymax) * (h - m.t - m.b);
 
-    const alpha = 1 - normCDF(thr);
-    const beta  = normCDF(thr - delta);
-    a.textContent = alpha.toFixed(3);
-    b.textContent = beta.toFixed(3);
-    pw.textContent = (1 - beta).toFixed(3);
+    const alpha = 1 - ncdf(thr);
+    const beta  = ncdf(thr - delta);
+    const pval  = 1 - ncdf(zobs);
+    setText('ht-a',  alpha.toFixed(3));
+    setText('ht-b',  beta.toFixed(3));
+    setText('ht-p',  (1 - beta).toFixed(3));
+    setText('ht-pv', pval.toFixed(4));
 
-    axes(ctx, w, h, m, { xLabel: 'test statistic' });
+    axes(ctx, w, h, m, { x: 'z' });
 
-    function curve(mu, fill) {
+    function curveOutline(mu, stroke, fill) {
       const pts = [];
       for (let i = 0; i <= 200; i++) {
         const x = lo + (hi - lo) * i / 200;
-        pts.push([x, normPDF(x, mu, 1)]);
+        pts.push([x, npdf(x, mu, 1)]);
       }
       ctx.fillStyle = fill;
       ctx.beginPath();
@@ -519,135 +855,224 @@ function axes(ctx, w, h, m, opts = {}) {
       for (const [x, y] of pts) ctx.lineTo(ax(x), ay(y));
       ctx.lineTo(ax(pts[pts.length - 1][0]), h - m.b);
       ctx.fill();
-      ctx.strokeStyle = fill === 'rgba(220,38,38,0.18)' ? BAD : ACCENT;
-      ctx.lineWidth = 1.5;
+      ctx.strokeStyle = stroke; ctx.lineWidth = 1.5;
       ctx.beginPath();
       pts.forEach(([x, y], i) => i ? ctx.lineTo(ax(x), ay(y)) : ctx.moveTo(ax(x), ay(y)));
       ctx.stroke();
     }
+    curveOutline(0,     BAD, 'rgba(220,38,38,0.05)');
+    curveOutline(delta, ACCENT, 'rgba(67,56,202,0.05)');
 
-    // Draw H0 and H1 (very pale fill)
-    curve(0, 'rgba(220,38,38,0.05)');
-    curve(delta, 'rgba(67,56,202,0.05)');
-
-    // Shade alpha (under H0, x>thr) and beta (under H1, x<thr)
     function shade(mu, from, to, color) {
       ctx.fillStyle = color;
       ctx.beginPath(); ctx.moveTo(ax(from), h - m.b);
       for (let i = 0; i <= 80; i++) {
         const x = from + (to - from) * i / 80;
-        ctx.lineTo(ax(x), ay(normPDF(x, mu, 1)));
+        ctx.lineTo(ax(x), ay(npdf(x, mu, 1)));
       }
-      ctx.lineTo(ax(to), h - m.b); ctx.closePath();
-      ctx.fill();
+      ctx.lineTo(ax(to), h - m.b); ctx.closePath(); ctx.fill();
     }
-    shade(0, thr, hi, 'rgba(220,38,38,0.45)');
-    shade(delta, lo, thr, 'rgba(245,158,11,0.55)');
+    shade(0,     thr, hi,  'rgba(220,38,38,0.45)');   // α
+    shade(delta, lo,  thr, 'rgba(245,158,11,0.55)');  // β
+    shade(0,     zobs, hi, 'rgba(67,56,202,0.30)');   // p-value tail
 
-    // Threshold line
     ctx.strokeStyle = INK; ctx.setLineDash([3, 3]); ctx.beginPath();
     ctx.moveTo(ax(thr), m.t); ctx.lineTo(ax(thr), h - m.b); ctx.stroke();
     ctx.setLineDash([]);
+    // z_obs marker (solid)
+    ctx.strokeStyle = ACCENT; ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(ax(zobs), m.t); ctx.lineTo(ax(zobs), h - m.b); ctx.stroke();
 
-    // Labels
-    ctx.fillStyle = INK; ctx.textAlign = 'center';
-    ctx.fillText('H₀', ax(0), m.t + 10);
+    ctx.fillStyle = INK; ctx.textAlign = 'center'; ctx.font = '11px Inter';
+    ctx.fillText('H₀', ax(0),     m.t + 10);
     ctx.fillText('H₁', ax(delta), m.t + 10);
   }
-  for (const el of [d, c]) el.addEventListener('input', draw);
+  for (const id of ['ht-d', 'ht-c', 'ht-z']) document.getElementById(id).addEventListener('input', draw);
   window.addEventListener('resize', draw);
   setTimeout(draw, 0);
-})();
+});
 
-// ============================================================
-// 6) Linear regression (draggable points)
-// ============================================================
-(function demo_reg() {
+// =============================================================
+// 10) t vs Normal
+// =============================================================
+mount('tn', () => {
+  const cv = document.getElementById('cv-tn');
+  function tpdf(x, df) {
+    const c = logGamma((df + 1) / 2) - logGamma(df / 2) - 0.5 * Math.log(df * Math.PI);
+    return Math.exp(c) * Math.pow(1 + x * x / df, -(df + 1) / 2);
+  }
+  function tcdfNumeric(c, df) {
+    // Numerical integration of the t-pdf, fast enough for the slider.
+    let s = 0; const N = 400;
+    const lo = -8, hi = c, dx = (hi - lo) / N;
+    for (let i = 0; i <= N; i++) {
+      const x = lo + i * dx;
+      const w = (i === 0 || i === N) ? 1 : (i % 2 ? 4 : 2);
+      s += w * tpdf(x, df);
+    }
+    return Math.min(1, Math.max(0, s * dx / 3));
+  }
+
+  function draw() {
+    const { ctx, w, h } = fitCanvas(cv);
+    ctx.clearRect(0, 0, w, h);
+    const df = Math.max(1, Math.round(n('tn-d', 3)));
+    const c  = clamp(n('tn-c', 2), 0, 5);
+    setText('tn-dv', df);
+    setText('tn-cv', c.toFixed(2));
+    const tailT = 1 - tcdfNumeric(c, df);
+    const tailN = 1 - ncdf(c);
+    setText('tn-pt', tailT.toFixed(4));
+    setText('tn-pn', tailN.toFixed(4));
+
+    const m = { l: 32, r: 12, t: 14, b: 26 };
+    const lo = -5, hi = 5;
+    const ax = x => m.l + (x - lo) / (hi - lo) * (w - m.l - m.r);
+    const ymax = 0.45;
+    const ay = y => h - m.b - (y / ymax) * (h - m.t - m.b);
+    axes(ctx, w, h, m, { x: 'x' });
+
+    // tail shade (right of c, t distribution)
+    ctx.fillStyle = 'rgba(67,56,202,0.30)';
+    ctx.beginPath(); ctx.moveTo(ax(c), h - m.b);
+    for (let i = 0; i <= 60; i++) {
+      const x = c + (hi - c) * i / 60;
+      ctx.lineTo(ax(x), ay(tpdf(x, df)));
+    }
+    ctx.lineTo(ax(hi), h - m.b); ctx.closePath(); ctx.fill();
+
+    // t
+    ctx.strokeStyle = ACCENT; ctx.lineWidth = 2;
+    ctx.beginPath();
+    for (let i = 0; i <= 200; i++) {
+      const x = lo + (hi - lo) * i / 200;
+      const y = ay(tpdf(x, df));
+      i ? ctx.lineTo(ax(x), y) : ctx.moveTo(ax(x), y);
+    }
+    ctx.stroke();
+    // N(0,1)
+    ctx.strokeStyle = INK; ctx.lineWidth = 1.5; ctx.setLineDash([4, 3]);
+    ctx.beginPath();
+    for (let i = 0; i <= 200; i++) {
+      const x = lo + (hi - lo) * i / 200;
+      const y = ay(npdf(x, 0, 1));
+      i ? ctx.lineTo(ax(x), y) : ctx.moveTo(ax(x), y);
+    }
+    ctx.stroke();
+    ctx.setLineDash([]);
+    // threshold
+    ctx.strokeStyle = INK; ctx.beginPath(); ctx.moveTo(ax(c), m.t); ctx.lineTo(ax(c), h - m.b); ctx.stroke();
+
+    ctx.fillStyle = ACCENT; ctx.textAlign = 'left'; ctx.font = '11px Inter';
+    ctx.fillText(`t (df = ${df})`, m.l + 4, m.t + 12);
+    ctx.fillStyle = INK;
+    ctx.fillText('N(0, 1) — dashed', m.l + 4, m.t + 26);
+  }
+  for (const id of ['tn-d', 'tn-c']) document.getElementById(id).addEventListener('input', draw);
+  window.addEventListener('resize', draw);
+  setTimeout(draw, 0);
+});
+
+// =============================================================
+// 11) Linear regression (draggable points)
+// =============================================================
+mount('reg', () => {
   const cv = document.getElementById('cv-reg');
   const b1 = document.getElementById('reg-b1');
   const b0 = document.getElementById('reg-b0');
   const r2 = document.getElementById('reg-r2');
+  const rmseE = document.getElementById('reg-rmse');
   const res = document.getElementById('reg-res');
+  const cb  = document.getElementById('reg-cb');
   const rst = document.getElementById('reg-reset');
 
   let pts = [];
   function resetPts() {
     pts = [];
     for (let i = 0; i < 15; i++) {
-      const x = -3 + 6 * lcg();
+      const x = -3 + 6 * Math.random();
       const y = 0.6 * x + 0.5 + 0.7 * gauss();
       pts.push({ x, y });
     }
   }
   resetPts();
 
+  const xmin = -4, xmax = 4, ymin = -4, ymax = 4;
   const m = { l: 32, r: 12, t: 14, b: 24 };
   let W = 0, H = 0;
-  let xmin = -4, xmax = 4, ymin = -4, ymax = 4;
-  function ax(x) { return m.l + (x - xmin) / (xmax - xmin) * (W - m.l - m.r); }
-  function ay(y) { return H - m.b - (y - ymin) / (ymax - ymin) * (H - m.t - m.b); }
-  function unax(px) { return xmin + (px - m.l) / (W - m.l - m.r) * (xmax - xmin); }
-  function unay(py) { return ymin + (H - m.b - py) / (H - m.t - m.b) * (ymax - ymin); }
-
+  const ax = x => m.l + (x - xmin) / (xmax - xmin) * (W - m.l - m.r);
+  const ay = y => H - m.b - (y - ymin) / (ymax - ymin) * (H - m.t - m.b);
+  const unax = px => xmin + (px - m.l) / (W - m.l - m.r) * (xmax - xmin);
+  const unay = py => ymin + (H - m.b - py) / (H - m.t - m.b) * (ymax - ymin);
   let drag = null;
 
   function fit() {
-    const n = pts.length;
-    const mx = pts.reduce((s, p) => s + p.x, 0) / n;
-    const my = pts.reduce((s, p) => s + p.y, 0) / n;
+    if (pts.length < 2) return { slope: 0, intc: 0, r2: 0, rmse: 0, sxx: 0, sse: 0, mx: 0 };
+    const nn = pts.length;
+    const mx = pts.reduce((s, p) => s + p.x, 0) / nn;
+    const my = pts.reduce((s, p) => s + p.y, 0) / nn;
     let sxy = 0, sxx = 0, sst = 0;
     for (const p of pts) { sxy += (p.x - mx) * (p.y - my); sxx += (p.x - mx) ** 2; sst += (p.y - my) ** 2; }
     const slope = sxx ? sxy / sxx : 0;
     const intc  = my - slope * mx;
-    let ssr = 0;
-    for (const p of pts) { const e = p.y - (slope * p.x + intc); ssr += e * e; }
-    return { slope, intc, r2: sst ? 1 - ssr / sst : 0 };
+    let sse = 0;
+    for (const p of pts) { const e = p.y - (slope * p.x + intc); sse += e * e; }
+    return { slope, intc, r2: sst ? 1 - sse / sst : 0, rmse: Math.sqrt(sse / nn), sxx, sse, mx };
   }
 
   function draw() {
-    const ctx = cv.getContext('2d');
-    const dpr = Math.max(1, window.devicePixelRatio || 1);
-    const rect = cv.getBoundingClientRect();
-    cv.width = Math.floor(rect.width * dpr);
-    cv.height = Math.floor(parseInt(cv.getAttribute('height'), 10) * dpr);
-    cv.style.height = parseInt(cv.getAttribute('height'), 10) + 'px';
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    W = rect.width; H = parseInt(cv.getAttribute('height'), 10);
-
-    ctx.clearRect(0, 0, W, H);
-    ctx.font = '11px Inter, sans-serif';
-    axes(ctx, W, H, m, { xLabel: 'x', yLabel: 'y' });
-
-    // grid
-    ctx.strokeStyle = '#F2F2F5';
-    for (let v = Math.ceil(xmin); v <= xmax; v++) {
-      ctx.beginPath(); ctx.moveTo(ax(v), m.t); ctx.lineTo(ax(v), H - m.b); ctx.stroke();
-    }
-    for (let v = Math.ceil(ymin); v <= ymax; v++) {
-      ctx.beginPath(); ctx.moveTo(m.l, ay(v)); ctx.lineTo(W - m.r, ay(v)); ctx.stroke();
-    }
+    const { ctx, w, h } = fitCanvas(cv);
+    W = w; H = h;
+    ctx.clearRect(0, 0, w, h);
+    axes(ctx, w, h, m, { x: 'x', y: 'y' });
+    ctx.strokeStyle = '#F4F4F7';
+    for (let v = Math.ceil(xmin); v <= xmax; v++) { ctx.beginPath(); ctx.moveTo(ax(v), m.t); ctx.lineTo(ax(v), h - m.b); ctx.stroke(); }
+    for (let v = Math.ceil(ymin); v <= ymax; v++) { ctx.beginPath(); ctx.moveTo(m.l, ay(v)); ctx.lineTo(w - m.r, ay(v)); ctx.stroke(); }
 
     const F = fit();
-    b1.textContent = F.slope.toFixed(3);
-    b0.textContent = F.intc.toFixed(3);
-    r2.textContent = F.r2.toFixed(3);
+    setText('reg-b1', F.slope.toFixed(3));
+    setText('reg-b0', F.intc.toFixed(3));
+    setText('reg-r2', F.r2.toFixed(3));
+    setText('reg-rmse', F.rmse.toFixed(3));
 
+    if (cb.checked && F.sxx > 0 && pts.length > 2) {
+      // 95% confidence band for the regression LINE
+      const sigma2 = F.sse / (pts.length - 2);
+      const tcrit = 1.96;
+      ctx.fillStyle = 'rgba(67,56,202,0.10)';
+      ctx.beginPath();
+      const NN = 60;
+      for (let i = 0; i <= NN; i++) {
+        const xv = xmin + (xmax - xmin) * i / NN;
+        const se = Math.sqrt(sigma2 * (1 / pts.length + (xv - F.mx) ** 2 / F.sxx));
+        const yv = F.slope * xv + F.intc + tcrit * se;
+        i ? ctx.lineTo(ax(xv), ay(yv)) : ctx.moveTo(ax(xv), ay(yv));
+      }
+      for (let i = NN; i >= 0; i--) {
+        const xv = xmin + (xmax - xmin) * i / NN;
+        const se = Math.sqrt(sigma2 * (1 / pts.length + (xv - F.mx) ** 2 / F.sxx));
+        const yv = F.slope * xv + F.intc - tcrit * se;
+        ctx.lineTo(ax(xv), ay(yv));
+      }
+      ctx.closePath(); ctx.fill();
+    }
     // OLS line
     ctx.strokeStyle = ACCENT; ctx.lineWidth = 2;
     ctx.beginPath();
     ctx.moveTo(ax(xmin), ay(F.slope * xmin + F.intc));
     ctx.lineTo(ax(xmax), ay(F.slope * xmax + F.intc));
     ctx.stroke();
-
     // Residuals
     if (res.checked) {
       ctx.strokeStyle = WARN; ctx.lineWidth = 1;
       for (const p of pts) {
-        const yhat = F.slope * p.x + F.intc;
-        ctx.beginPath(); ctx.moveTo(ax(p.x), ay(p.y)); ctx.lineTo(ax(p.x), ay(yhat)); ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(ax(p.x), ay(p.y));
+        ctx.lineTo(ax(p.x), ay(F.slope * p.x + F.intc));
+        ctx.stroke();
       }
     }
-
     // Points
     for (const p of pts) {
       ctx.fillStyle = INK;
@@ -658,7 +1083,7 @@ function axes(ctx, w, h, m, opts = {}) {
   function pickAt(mx, my) {
     for (let i = 0; i < pts.length; i++) {
       const p = pts[i];
-      if (Math.hypot(ax(p.x) - mx, ay(p.y) - my) <= 8) return i;
+      if (Math.hypot(ax(p.x) - mx, ay(p.y) - my) <= 9) return i;
     }
     return -1;
   }
@@ -671,22 +1096,22 @@ function axes(ctx, w, h, m, opts = {}) {
   cv.addEventListener('pointermove', e => {
     if (drag === null) return;
     const r = cv.getBoundingClientRect();
-    pts[drag].x = unax(e.clientX - r.left);
-    pts[drag].y = unay(e.clientY - r.top);
+    pts[drag].x = clamp(unax(e.clientX - r.left), xmin, xmax);
+    pts[drag].y = clamp(unay(e.clientY - r.top), ymin, ymax);
     draw();
   });
-  cv.addEventListener('pointerup', () => { drag = null; });
+  cv.addEventListener('pointerup',    () => { drag = null; });
   cv.addEventListener('pointerleave', () => { drag = null; });
-  res.addEventListener('change', draw);
+  for (const el of [res, cb]) el.addEventListener('change', draw);
   rst.addEventListener('click', () => { resetPts(); draw(); });
   window.addEventListener('resize', draw);
   setTimeout(draw, 0);
-})();
+});
 
-// ============================================================
-// 7) Monte Carlo π
-// ============================================================
-(function demo_mc() {
+// =============================================================
+// 12) Monte Carlo π
+// =============================================================
+mount('mc', () => {
   const cv = document.getElementById('cv-mc');
   const r  = document.getElementById('mc-r'), rv = document.getElementById('mc-rv');
   const ne = document.getElementById('mc-n');
@@ -694,33 +1119,23 @@ function axes(ctx, w, h, m, opts = {}) {
   const pe = document.getElementById('mc-pi');
   const tg = document.getElementById('mc-toggle');
   const rs = document.getElementById('mc-reset');
-
   const dpr = Math.max(1, window.devicePixelRatio || 1);
-  let N = 0, K = 0;
-  let running = true;
-  let timer = null;
 
-  function fit() {
+  let N = 0, K = 0, running = true, S = 0;
+  let ctx = null;
+
+  function initFrame() {
     const rect = cv.getBoundingClientRect();
-    cv.width = Math.floor(rect.width * dpr);
+    cv.width  = Math.floor(rect.width * dpr);
     cv.height = Math.floor(rect.width * dpr);
     cv.style.height = rect.width + 'px';
-    const ctx = cv.getContext('2d');
+    ctx = cv.getContext('2d');
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    return { ctx, S: rect.width };
-  }
-
-  let S = 0, ctx = null;
-  function initFrame() {
-    const f = fit(); ctx = f.ctx; S = f.S;
-    ctx.fillStyle = '#FAFAFA';
-    ctx.fillRect(0, 0, S, S);
-    ctx.strokeStyle = INK;
-    ctx.strokeRect(0.5, 0.5, S - 1, S - 1);
-    ctx.beginPath();
-    ctx.moveTo(0, S); ctx.arc(0, S, S, -Math.PI / 2, 0); ctx.lineTo(0, S);
-    ctx.strokeStyle = ACCENT; ctx.lineWidth = 2;
-    ctx.stroke();
+    S = rect.width;
+    ctx.fillStyle = '#FAFAFA'; ctx.fillRect(0, 0, S, S);
+    ctx.strokeStyle = INK; ctx.strokeRect(0.5, 0.5, S - 1, S - 1);
+    ctx.beginPath(); ctx.moveTo(0, S); ctx.arc(0, S, S, -Math.PI / 2, 0); ctx.lineTo(0, S);
+    ctx.strokeStyle = ACCENT; ctx.lineWidth = 2; ctx.stroke();
   }
   initFrame();
 
@@ -730,7 +1145,7 @@ function axes(ctx, w, h, m, opts = {}) {
     const batch = Math.max(1, Math.round(rate / 30));
     rv.textContent = `${rate}/s`;
     for (let i = 0; i < batch; i++) {
-      const x = lcg(), y = lcg();
+      const x = Math.random(), y = Math.random();
       const inside = x * x + y * y <= 1;
       ctx.fillStyle = inside ? ACCENT : MUTED;
       ctx.fillRect(x * S, (1 - y) * S, 1.5, 1.5);
@@ -740,76 +1155,61 @@ function axes(ctx, w, h, m, opts = {}) {
     ke.textContent = K;
     pe.textContent = N ? (4 * K / N).toFixed(5) : '—';
   }
-
-  function loop() { if (running) throwSome(); }
-  timer = setInterval(loop, 33);
-
-  tg.addEventListener('click', () => {
-    running = !running;
-    tg.textContent = running ? 'pause' : 'resume';
-  });
+  const loop = () => { if (running) throwSome(); };
+  setInterval(loop, 33);
+  tg.addEventListener('click', () => { running = !running; tg.textContent = running ? 'pause' : 'resume'; });
   rs.addEventListener('click', () => { N = 0; K = 0; ne.textContent = 0; ke.textContent = 0; pe.textContent = '—'; initFrame(); });
   r.addEventListener('input', () => { rv.textContent = `${r.value}/s`; });
   window.addEventListener('resize', () => { initFrame(); N = 0; K = 0; ne.textContent = 0; ke.textContent = 0; pe.textContent = '—'; });
-})();
+});
 
-// ============================================================
-// 8) Random walk
-// ============================================================
-(function demo_rw() {
+// =============================================================
+// 13) Random walks
+// =============================================================
+mount('rw', () => {
   const cv = document.getElementById('cv-rw');
-  const k  = document.getElementById('rw-k'), kv = document.getElementById('rw-kv');
-  const b  = document.getElementById('rw-b'), bv = document.getElementById('rw-bv');
-  const go = document.getElementById('rw-go');
-
   function draw() {
-    const { ctx, w, h } = setupCanvas(cv);
+    const { ctx, w, h } = fitCanvas(cv);
     ctx.clearRect(0, 0, w, h);
     const m = { l: 28, r: 12, t: 14, b: 24 };
-    const K = +k.value, B = +b.value;
-    kv.textContent = K; bv.textContent = B.toFixed(2);
+    const K = Math.max(1, Math.round(n('rw-k', 40)));
+    const B = clamp(n('rw-b', 0), -0.4, 0.4);
+    setText('rw-kv', K);
+    setText('rw-bv', B.toFixed(2));
     const T = 200;
     const lim = Math.max(8, Math.sqrt(T) * 2 + Math.abs(B * T));
     const ax = t => m.l + t / T * (w - m.l - m.r);
     const ay = y => m.t + (1 - (y + lim) / (2 * lim)) * (h - m.t - m.b);
-    axes(ctx, w, h, m, { xLabel: 't' });
+    axes(ctx, w, h, m, { x: 't' });
 
-    // Envelope ±√t
+    // envelope
     ctx.strokeStyle = INK; ctx.setLineDash([3, 3]);
     ctx.beginPath();
-    for (let t = 0; t <= T; t++) {
-      const y = ay(Math.sqrt(t) + B * t);
-      t === 0 ? ctx.moveTo(ax(t), y) : ctx.lineTo(ax(t), y);
-    }
+    for (let t = 0; t <= T; t++) { const y = ay(Math.sqrt(t) + B * t); t ? ctx.lineTo(ax(t), y) : ctx.moveTo(ax(t), y); }
     ctx.stroke();
     ctx.beginPath();
-    for (let t = 0; t <= T; t++) {
-      const y = ay(-Math.sqrt(t) + B * t);
-      t === 0 ? ctx.moveTo(ax(t), y) : ctx.lineTo(ax(t), y);
-    }
+    for (let t = 0; t <= T; t++) { const y = ay(-Math.sqrt(t) + B * t); t ? ctx.lineTo(ax(t), y) : ctx.moveTo(ax(t), y); }
     ctx.stroke();
     ctx.setLineDash([]);
 
-    // 0 line
-    ctx.strokeStyle = RULE; ctx.beginPath();
-    ctx.moveTo(m.l, ay(0)); ctx.lineTo(w - m.r, ay(0)); ctx.stroke();
+    ctx.strokeStyle = RULE;
+    ctx.beginPath(); ctx.moveTo(m.l, ay(0)); ctx.lineTo(w - m.r, ay(0)); ctx.stroke();
 
     ctx.lineWidth = 1.2;
     for (let i = 0; i < K; i++) {
-      ctx.strokeStyle = `hsla(${(i * 60) % 360}, 70%, 45%, 0.45)`;
+      ctx.strokeStyle = `hsla(${(i * 53) % 360}, 70%, 45%, 0.45)`;
       ctx.beginPath();
       let pos = 0;
       ctx.moveTo(ax(0), ay(0));
       for (let t = 1; t <= T; t++) {
-        const step = (lcg() < 0.5 + B ? 1 : -1);
-        pos += step;
+        pos += (Math.random() < 0.5 + B ? 1 : -1);
         ctx.lineTo(ax(t), ay(pos));
       }
       ctx.stroke();
     }
   }
-  for (const el of [k, b]) el.addEventListener('input', draw);
-  go.addEventListener('click', draw);
+  for (const id of ['rw-k', 'rw-b']) document.getElementById(id).addEventListener('input', draw);
+  document.getElementById('rw-go').addEventListener('click', draw);
   window.addEventListener('resize', draw);
   setTimeout(draw, 0);
-})();
+});
