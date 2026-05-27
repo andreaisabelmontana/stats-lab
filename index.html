@@ -1,0 +1,206 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#4338CA" />
+    <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
+    <title>stats-lab · visual probability &amp; statistics</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" />
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+            onload="renderMathInElement(document.body, { delimiters: [{left:'$$', right:'$$', display:true},{left:'$', right:'$', display:false}] })"></script>
+
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <header>
+      <div class="title">
+        <span class="dot"></span>
+        <strong>stats-lab</strong>
+        <span class="sub">probability &amp; statistics, visual</span>
+      </div>
+      <nav>
+        <a href="#dist">distributions</a>
+        <a href="#clt">CLT</a>
+        <a href="#bayes">Bayes</a>
+        <a href="#ci">CI</a>
+        <a href="#ht">hypothesis</a>
+        <a href="#reg">regression</a>
+        <a href="#mc">Monte Carlo</a>
+        <a href="#rw">random walk</a>
+      </nav>
+    </header>
+
+    <main>
+      <!-- 1. DISTRIBUTIONS ------------------------------------------------- -->
+      <section class="demo" id="dist">
+        <h2>1. Distributions</h2>
+        <p class="cap">PDF/PMF of the canonical distributions. Drag the sliders.</p>
+        <div class="row">
+          <div class="canvas-wrap"><canvas id="cv-dist" width="600" height="280"></canvas></div>
+          <div class="ctrls">
+            <label>family
+              <select id="dist-family">
+                <option value="normal">Normal $\mathcal{N}(\mu,\sigma^2)$</option>
+                <option value="binom">Binomial $\text{Bin}(n,p)$</option>
+                <option value="poisson">Poisson $\text{Pois}(\lambda)$</option>
+                <option value="expo">Exponential $\text{Exp}(\lambda)$</option>
+                <option value="beta">Beta $\text{Beta}(\alpha,\beta)$</option>
+              </select>
+            </label>
+            <label>p1 <span class="mono" id="dist-p1v">0</span>
+              <input id="dist-p1" type="range" min="-3" max="3" step="0.05" value="0"/></label>
+            <label>p2 <span class="mono" id="dist-p2v">1</span>
+              <input id="dist-p2" type="range" min="0.1" max="3" step="0.05" value="1"/></label>
+            <label class="check"><input id="dist-cdf" type="checkbox"/> show CDF</label>
+          </div>
+        </div>
+      </section>
+
+      <!-- 2. CENTRAL LIMIT THEOREM ---------------------------------------- -->
+      <section class="demo" id="clt">
+        <h2>2. Central Limit Theorem</h2>
+        <p class="cap">Draw $m$ samples of size $n$ from a non-normal distribution; histogram of sample means. As $n$ grows, it goes Gaussian.</p>
+        <div class="row">
+          <div class="canvas-wrap"><canvas id="cv-clt" width="600" height="280"></canvas></div>
+          <div class="ctrls">
+            <label>source
+              <select id="clt-src">
+                <option value="uniform">Uniform[0,1]</option>
+                <option value="exp">Exponential(1)</option>
+                <option value="bimodal">Bimodal</option>
+                <option value="cauchy">Cauchy (fails!)</option>
+              </select>
+            </label>
+            <label>sample size n <span class="mono" id="clt-nv">10</span>
+              <input id="clt-n" type="range" min="1" max="120" value="10"/></label>
+            <label>draws <span class="mono" id="clt-mv">2000</span>
+              <input id="clt-m" type="range" min="200" max="10000" step="200" value="2000"/></label>
+            <button id="clt-go" class="btn">resample</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- 3. BAYES -------------------------------------------------------- -->
+      <section class="demo" id="bayes">
+        <h2>3. Bayes' theorem</h2>
+        <p class="cap">A 100-person grid. Drag the priors. Posterior $P(D \mid +)$ updates.</p>
+        <div class="row">
+          <div class="canvas-wrap"><canvas id="cv-bayes" width="600" height="280"></canvas></div>
+          <div class="ctrls">
+            <label>base rate $P(D)$ <span class="mono" id="bay-pv">0.05</span>
+              <input id="bay-prior" type="range" min="0.005" max="0.5" step="0.005" value="0.05"/></label>
+            <label>sensitivity $P(+ \mid D)$ <span class="mono" id="bay-sv">0.95</span>
+              <input id="bay-sens" type="range" min="0.5" max="1" step="0.01" value="0.95"/></label>
+            <label>specificity $P(- \mid \neg D)$ <span class="mono" id="bay-tv">0.92</span>
+              <input id="bay-spec" type="range" min="0.5" max="1" step="0.01" value="0.92"/></label>
+            <div class="readout"><span>posterior</span><strong id="bay-post" class="mono">—</strong></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 4. CONFIDENCE INTERVALS ----------------------------------------- -->
+      <section class="demo" id="ci">
+        <h2>4. Confidence intervals</h2>
+        <p class="cap">100 CIs from independent samples of $\mathcal{N}(0,1)$. The dashed line is the true mean. Coverage should match the nominal level.</p>
+        <div class="row">
+          <div class="canvas-wrap"><canvas id="cv-ci" width="600" height="320"></canvas></div>
+          <div class="ctrls">
+            <label>sample size n <span class="mono" id="ci-nv">12</span>
+              <input id="ci-n" type="range" min="2" max="100" value="12"/></label>
+            <label>level <span class="mono" id="ci-lv">0.95</span>
+              <input id="ci-l" type="range" min="0.50" max="0.99" step="0.01" value="0.95"/></label>
+            <button id="ci-go" class="btn">resample</button>
+            <div class="readout"><span>coverage</span><strong id="ci-cov" class="mono">—</strong></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 5. HYPOTHESIS TEST ---------------------------------------------- -->
+      <section class="demo" id="ht">
+        <h2>5. Hypothesis test</h2>
+        <p class="cap">$H_0: \mu=0$ vs $H_1: \mu=\delta$. Drag effect size and threshold; see Type I (red) and Type II (orange) error.</p>
+        <div class="row">
+          <div class="canvas-wrap"><canvas id="cv-ht" width="600" height="280"></canvas></div>
+          <div class="ctrls">
+            <label>effect size $\delta$ <span class="mono" id="ht-dv">2.0</span>
+              <input id="ht-d" type="range" min="0" max="5" step="0.05" value="2"/></label>
+            <label>threshold $c$ <span class="mono" id="ht-cv">1.64</span>
+              <input id="ht-c" type="range" min="-2" max="6" step="0.05" value="1.64"/></label>
+            <div class="readout"><span>$\alpha$ (Type I)</span><strong id="ht-a" class="mono">—</strong></div>
+            <div class="readout"><span>$\beta$ (Type II)</span><strong id="ht-b" class="mono">—</strong></div>
+            <div class="readout"><span>power</span><strong id="ht-p" class="mono">—</strong></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 6. LINEAR REGRESSION -------------------------------------------- -->
+      <section class="demo" id="reg">
+        <h2>6. Linear regression</h2>
+        <p class="cap">Drag points. The OLS line minimises $\sum (y - \hat y)^2$.</p>
+        <div class="row">
+          <div class="canvas-wrap"><canvas id="cv-reg" width="600" height="320"></canvas></div>
+          <div class="ctrls">
+            <div class="readout"><span>slope $\hat\beta_1$</span><strong id="reg-b1" class="mono">—</strong></div>
+            <div class="readout"><span>intercept $\hat\beta_0$</span><strong id="reg-b0" class="mono">—</strong></div>
+            <div class="readout"><span>$R^2$</span><strong id="reg-r2" class="mono">—</strong></div>
+            <label class="check"><input id="reg-res" type="checkbox" checked/> show residuals</label>
+            <button id="reg-reset" class="btn">reset points</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- 7. MONTE CARLO PI ----------------------------------------------- -->
+      <section class="demo" id="mc">
+        <h2>7. Monte Carlo $\pi$</h2>
+        <p class="cap">Throw random points at a unit square. Fraction inside the quarter-circle times 4 converges to $\pi$.</p>
+        <div class="row">
+          <div class="canvas-wrap"><canvas id="cv-mc" width="320" height="320"></canvas></div>
+          <div class="ctrls">
+            <label>throw rate <span class="mono" id="mc-rv">300/s</span>
+              <input id="mc-r" type="range" min="60" max="3000" step="60" value="300"/></label>
+            <div class="readout"><span>thrown</span><strong id="mc-n" class="mono">0</strong></div>
+            <div class="readout"><span>inside</span><strong id="mc-k" class="mono">0</strong></div>
+            <div class="readout"><span>$\hat\pi$</span><strong id="mc-pi" class="mono big">—</strong></div>
+            <button id="mc-toggle" class="btn">pause</button>
+            <button id="mc-reset"  class="btn">reset</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- 8. RANDOM WALK -------------------------------------------------- -->
+      <section class="demo" id="rw">
+        <h2>8. Random walk</h2>
+        <p class="cap">$k$ independent walks. The dashed envelope is $\pm\sqrt{t}$.</p>
+        <div class="row">
+          <div class="canvas-wrap"><canvas id="cv-rw" width="600" height="280"></canvas></div>
+          <div class="ctrls">
+            <label>walks $k$ <span class="mono" id="rw-kv">40</span>
+              <input id="rw-k" type="range" min="1" max="200" value="40"/></label>
+            <label>step bias <span class="mono" id="rw-bv">0</span>
+              <input id="rw-b" type="range" min="-0.4" max="0.4" step="0.01" value="0"/></label>
+            <button id="rw-go" class="btn">replay</button>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      <span>stats-lab — Andrea Montana · IE BCSAI</span>
+      <span class="more">
+        <a href="https://github.com/andreaisabelmontana/calc-lab"  target="_blank">calc-lab</a>
+        <a href="https://github.com/andreaisabelmontana/algos-lab" target="_blank">algos-lab</a>
+        <a href="https://github.com/andreaisabelmontana/sql-lab"   target="_blank">sql-lab</a>
+        <a href="https://github.com/andreaisabelmontana/stats-lab" target="_blank">source</a>
+      </span>
+    </footer>
+
+    <script type="module" src="./src/app.js"></script>
+  </body>
+</html>
