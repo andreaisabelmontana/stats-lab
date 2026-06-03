@@ -1,0 +1,669 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#4338CA" />
+    <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
+    <title>Worked example · Markov chains &amp; an M/M/1 queue · stats-lab</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" />
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+            onload="renderMathInElement(document.body, { delimiters: [{left:'$$', right:'$$', display:true},{left:'$', right:'$', display:false}], ignoredTags: ['option','script','textarea'] })"></script>
+
+    <link rel="stylesheet" href="./style.css" />
+
+    <!-- scoped additions — reuse :root tokens, no new palette. Code + figure + table blocks only. -->
+    <style>
+      .lead { color: var(--ink-soft); font-size: 0.9rem; line-height: 1.65; margin: 0.2rem 0 0; }
+      .lead + .lead { margin-top: 0.7rem; }
+
+      /* meta strip (reused from course.html look) */
+      .meta-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+        gap: 0.65rem; margin-top: 0.7rem;
+      }
+      .meta-grid .cell {
+        border: 1px solid var(--rule); border-radius: 6px;
+        padding: 0.55rem 0.7rem; background: var(--paper);
+      }
+      .meta-grid .cell .k { color: var(--muted); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.04em; }
+      .meta-grid .cell .v { color: var(--ink); font-weight: 700; font-size: 0.9rem; margin-top: 0.15rem; }
+
+      /* step headings inside a section */
+      .step { margin-top: 1.3rem; }
+      .step:first-of-type { margin-top: 0.5rem; }
+      .step > h3 {
+        font-size: 0.9rem; font-weight: 700; margin: 0 0 0.4rem; color: var(--ink);
+        display: flex; align-items: baseline; gap: 0.5rem;
+      }
+      .step > h3 .sn {
+        font-family: var(--font-mono); font-size: 0.72rem; font-weight: 600;
+        color: var(--accent); background: var(--accent-soft);
+        border: 1px solid var(--accent); border-radius: 999px;
+        padding: 0.05em 0.55em; flex: 0 0 auto;
+      }
+      .step p { color: var(--ink-soft); font-size: 0.87rem; line-height: 1.6; margin: 0.3rem 0; }
+
+      /* formula callout — borrowed from course.html */
+      .formula {
+        margin: 0.55rem 0; padding: 0.55rem 0.8rem;
+        border-left: 2px solid var(--accent); background: var(--bg);
+        border-radius: 0 6px 6px 0; font-size: 0.88rem; color: var(--ink-soft); line-height: 1.7;
+      }
+      .formula .flab {
+        display: block; font-size: 0.68rem; font-weight: 700; text-transform: uppercase;
+        letter-spacing: 0.05em; color: var(--accent); margin-bottom: 0.3rem;
+      }
+      .keyidea {
+        margin: 0.55rem 0; padding: 0.5rem 0.7rem;
+        border: 1px dashed var(--rule-h); border-radius: 6px;
+        font-size: 0.85rem; color: var(--ink-soft); line-height: 1.6;
+      }
+      .keyidea .klab {
+        font-size: 0.68rem; font-weight: 700; text-transform: uppercase;
+        letter-spacing: 0.05em; color: var(--muted); margin-right: 0.5em;
+      }
+
+      /* code blocks */
+      pre.code {
+        margin: 0.6rem 0; padding: 0.85rem 1rem;
+        background: #15151A; color: #ECECF1;
+        border: 1px solid var(--rule-h); border-radius: 8px;
+        overflow-x: auto; font-family: var(--font-mono);
+        font-size: 0.78rem; line-height: 1.65;
+        -webkit-font-smoothing: auto;
+      }
+      pre.code code { font-family: inherit; white-space: pre; }
+      pre.code .cmt { color: #7E7E8C; }
+      pre.code .kw  { color: #C792EA; }
+      pre.code .str { color: #C3E88D; }
+      pre.code .fn  { color: #82AAFF; }
+      pre.code .num { color: #F78C6C; }
+      .code-cap { color: var(--muted); font-size: 0.76rem; margin: 0.15rem 0 0.2rem; font-family: var(--font-mono); }
+
+      /* console output */
+      pre.out {
+        margin: 0.35rem 0 0.6rem; padding: 0.7rem 1rem;
+        background: var(--bg); color: var(--ink-soft);
+        border: 1px solid var(--rule); border-left: 2px solid var(--good);
+        border-radius: 0 6px 6px 0; overflow-x: auto;
+        font-family: var(--font-mono); font-size: 0.76rem; line-height: 1.6; white-space: pre;
+      }
+
+      /* inline SVG figure card */
+      .figure {
+        margin: 0.7rem 0; padding: 0.85rem;
+        background: var(--paper); border: 1px solid var(--rule); border-radius: 8px;
+      }
+      .figure svg { display: block; width: 100%; height: auto; }
+      .figure figcaption { color: var(--muted); font-size: 0.78rem; margin-top: 0.5rem; line-height: 1.5; }
+
+      /* data table (results) */
+      table.data {
+        width: 100%; border-collapse: collapse; margin: 0.6rem 0;
+        font-size: 0.84rem;
+      }
+      table.data caption {
+        caption-side: top; text-align: left; color: var(--muted);
+        font-size: 0.78rem; margin-bottom: 0.4rem;
+      }
+      table.data th, table.data td {
+        text-align: right; padding: 0.4rem 0.7rem;
+        border-bottom: 1px solid var(--rule);
+      }
+      table.data th:first-child, table.data td:first-child { text-align: left; }
+      table.data thead th {
+        color: var(--accent); font-size: 0.72rem; text-transform: uppercase;
+        letter-spacing: 0.03em; border-bottom: 1px solid var(--rule-h);
+      }
+      table.data tbody td { font-family: var(--font-mono); color: var(--ink); }
+      table.data tbody td:first-child { font-family: var(--font-sans); color: var(--ink-soft); font-weight: 500; }
+      table.data tbody tr:last-child td { border-bottom: 0; }
+      table.data .ok { color: var(--good); font-weight: 600; }
+
+      /* outcome mapping + extensions + refs lists */
+      .map-list, .ext-list, .biblio { list-style: none; padding: 0; margin: 0.4rem 0 0; display: flex; flex-direction: column; gap: 0.6rem; }
+      .map-list li { display: flex; gap: 0.7rem; align-items: flex-start; color: var(--ink-soft); font-size: 0.86rem; line-height: 1.55; }
+      .map-list li .oc {
+        flex: 0 0 auto; font-family: var(--font-mono); font-size: 0.7rem; font-weight: 600;
+        color: var(--accent); background: var(--accent-soft); border: 1px solid var(--accent);
+        border-radius: 999px; padding: 0.1em 0.55em; margin-top: 0.05em;
+      }
+      .ext-list li { color: var(--ink-soft); font-size: 0.86rem; line-height: 1.55; border-left: 2px solid var(--rule-h); padding-left: 0.7rem; }
+      .ext-list li .et { color: var(--ink); font-weight: 700; }
+      .biblio li { color: var(--ink-soft); font-size: 0.86rem; line-height: 1.55; }
+      .biblio li .bk { color: var(--ink); font-style: italic; }
+      .biblio li .isbn { color: var(--muted); font-family: var(--font-mono); font-size: 0.76rem; }
+
+      /* cross-link tag pills */
+      .tags { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.55rem; }
+      .tag {
+        font-size: 0.72rem; font-family: var(--font-mono); font-weight: 500;
+        color: var(--ink-soft); background: var(--bg);
+        border: 1px solid var(--rule); border-radius: 999px; padding: 0.12em 0.6em;
+      }
+      .tag a { color: inherit; border: 0; }
+      .tag a:hover { border: 0; text-decoration: underline; }
+      .tag.demo-link { color: var(--accent); border-color: var(--accent); background: var(--accent-soft); }
+
+      .stack { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.3rem; }
+      .pill {
+        font-size: 0.74rem; font-family: var(--font-mono); color: var(--ink-soft);
+        background: var(--bg); border: 1px solid var(--rule); border-radius: 4px; padding: 0.12em 0.55em;
+      }
+      .toc { font-size: 0.82rem; color: var(--ink-soft); line-height: 1.9; margin-top: 0.5rem; }
+      .toc a { font-weight: 500; }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div class="title">
+        <span class="dot"></span><strong>stats-lab</strong>
+        <span class="sub">worked example · Markov chains &amp; queues</span>
+      </div>
+      <nav>
+        <a href="./index.html">← interactive demos</a>
+        <a href="./course.html">course outline</a>
+        <a href="#overview">overview</a>
+        <a href="#theory">theory</a>
+        <a href="#design">design</a>
+        <a href="#build">build</a>
+        <a href="#results">results</a>
+        <a href="#outcomes">outcomes</a>
+        <a href="#extend">extensions</a>
+        <a href="./SYLLABUS.pdf" target="_blank">syllabus PDF</a>
+      </nav>
+    </header>
+
+    <main>
+      <!-- 1. OVERVIEW ---------------------------------------------------- -->
+      <section class="demo" id="overview">
+        <h2>Worked example — a Markov chain &amp; an M/M/1 queue, simulated vs. solved</h2>
+        <p class="cap">A complete, runnable mini-project that ties together the stochastic-process half of the course: build a discrete-time Markov chain, solve for its stationary distribution two independent ways, then simulate a continuous-time M/M/1 queue and check the measured metrics against the closed-form theory and Little's law.</p>
+
+        <p class="lead">
+          <strong>Goal.</strong> Take two of the course's central models — the <em>discrete-time Markov chain</em>
+          (sessions&nbsp;8–9) and the <em>M/M/1 queue</em> built on the exponential distribution and the Poisson
+          process (sessions&nbsp;10–12) — and treat them the way a working computer scientist would: write down the
+          probability, compute the exact answer, then build a simulator and confirm the two agree. When the
+          long-run average of a noisy simulation lands on the number an eigenvector predicted, the theory stops
+          being abstract.
+        </p>
+        <p class="lead">
+          The project is deliberately small and self-contained: roughly 120 lines of <span class="mono">numpy</span>,
+          no external state, fully reproducible from a fixed seed. It is exactly the kind of "small prototype with
+          details about construction" the syllabus asks for as group work, and the metrics it produces are the ones
+          listed under <em>Queuing theory · performance metrics</em>.
+        </p>
+
+        <div class="meta-grid">
+          <div class="cell"><div class="k">Course</div><div class="v">Probability for Computing Science</div></div>
+          <div class="cell"><div class="k">Sessions exercised</div><div class="v">8, 9, 10, 11, 12</div></div>
+          <div class="cell"><div class="k">Stack</div><div class="v">Python 3 · NumPy</div></div>
+          <div class="cell"><div class="k">Lines of code</div><div class="v">~120, single file</div></div>
+          <div class="cell"><div class="k">Reproducible</div><div class="v">fixed RNG seed</div></div>
+          <div class="cell"><div class="k">Runtime</div><div class="v">&lt; 1 s</div></div>
+        </div>
+
+        <div class="stack">
+          <span class="pill">python3</span>
+          <span class="pill">numpy</span>
+          <span class="pill">no plotting deps</span>
+          <span class="pill">deterministic</span>
+        </div>
+
+        <div class="tags">
+          <span class="tag demo-link"><a href="./course.html#program">↳ sessions 8–12</a></span>
+          <span class="tag demo-link"><a href="./index.html#disc">↳ discrete distributions demo</a></span>
+          <span class="tag demo-link"><a href="./index.html#cont">↳ continuous / exponential demo</a></span>
+          <span class="tag demo-link"><a href="./index.html#clt">↳ CLT demo</a></span>
+          <span class="tag demo-link"><a href="./index.html#rw">↳ random walks demo</a></span>
+        </div>
+
+        <p class="toc" style="margin-top:0.9rem;">
+          <strong style="color:var(--ink)">On this page:</strong>
+          <a href="#theory">1 · the probability</a> ·
+          <a href="#design">2 · design</a> ·
+          <a href="#build">3 · implementation</a> ·
+          <a href="#results">4 · results</a> ·
+          <a href="#outcomes">5 · learning outcomes</a> ·
+          <a href="#extend">6 · extensions</a> ·
+          <a href="#refs">7 · references</a>
+        </p>
+      </section>
+
+      <!-- 2. THEORY ------------------------------------------------------ -->
+      <section class="demo" id="theory">
+        <h2>1. The probability</h2>
+        <p class="cap">Everything the code computes can be written on one page. We split it into the discrete-time chain and the continuous-time queue.</p>
+
+        <div class="step">
+          <h3><span class="sn">1a</span> Discrete-time Markov chain</h3>
+          <p>
+            A Markov chain on a finite state space $\mathcal{S}=\{1,\dots,n\}$ is governed by a
+            <strong>row-stochastic transition matrix</strong> $P$, where $P_{ij}=\Pr(X_{t+1}=j \mid X_t=i)$.
+            The Markov property says the future depends on the present only — not the path taken to get there:
+          </p>
+          <div class="formula">
+            <span class="flab">Markov property &amp; transition matrix</span>
+            $\Pr(X_{t+1}=j \mid X_t=i, X_{t-1}, \dots) = \Pr(X_{t+1}=j \mid X_t=i) = P_{ij},
+            \qquad \sum_{j} P_{ij} = 1.$
+          </div>
+          <p>
+            If the row vector $\mu_t$ holds the distribution over states at time $t$, then one step forward is just
+            a vector–matrix product, $\mu_{t+1} = \mu_t P$, and $k$ steps is $\mu_{t+k} = \mu_t P^{k}$.
+            For an irreducible, aperiodic chain this converges to a unique <strong>stationary distribution</strong>
+            $\pi$ — the row vector fixed by $P$:
+          </p>
+          <div class="formula">
+            <span class="flab">Stationary distribution</span>
+            $\pi P = \pi, \qquad \sum_i \pi_i = 1, \qquad \pi_i \ge 0.$
+            <br/>Equivalently, $\pi^\top$ is the left eigenvector of $P$ (the eigenvector of $P^\top$) for eigenvalue $1$.
+          </div>
+          <div class="keyidea">
+            <span class="klab">Two ways, one answer</span>
+            We will compute $\pi$ both as the dominant eigenvector of $P^\top$ <em>and</em> by power iteration
+            ($\mu \leftarrow \mu P$ until it stops moving). Agreement to machine precision is the first sanity check.
+            The PageRank algorithm is exactly this stationary-distribution problem on the web graph.
+          </div>
+        </div>
+
+        <div class="step">
+          <h3><span class="sn">1b</span> Exponential inter-arrivals &amp; the Poisson process</h3>
+          <p>
+            The queue runs in <em>continuous</em> time. Customers arrive as a <strong>Poisson process</strong> of
+            rate $\lambda$, which is equivalent to saying the gaps between arrivals are i.i.d.
+            $\mathrm{Exponential}(\lambda)$. Service times are also $\mathrm{Exponential}(\mu)$. The exponential is
+            the only continuous distribution that is <strong>memoryless</strong>:
+          </p>
+          <div class="formula">
+            <span class="flab">Exponential — pdf &amp; memorylessness</span>
+            $f(t) = \lambda e^{-\lambda t}\ (t\ge 0), \quad \mathbb{E}[T]=\tfrac{1}{\lambda};
+            \qquad \Pr(T > s+t \mid T > s) = \Pr(T > t).$
+          </div>
+          <p>
+            Memorylessness is what makes the queue a (continuous-time) Markov chain on the number of customers in
+            the system: how long the current arrival or service has already taken tells you nothing about how much
+            longer it will take.
+          </p>
+        </div>
+
+        <div class="step">
+          <h3><span class="sn">1c</span> The M/M/1 queue &amp; Little's law</h3>
+          <p>
+            <strong>M/M/1</strong> = Markovian arrivals, Markovian service, 1 server, infinite FIFO buffer.
+            Define the <strong>utilization</strong> (traffic intensity) $\rho=\lambda/\mu$. The queue is stable
+            only when $\rho<1$; otherwise work arrives faster than it can be cleared and the line grows without
+            bound. For a stable M/M/1 queue the steady-state metrics have clean closed forms:
+          </p>
+          <div class="formula">
+            <span class="flab">M/M/1 steady-state metrics</span>
+            $\rho = \dfrac{\lambda}{\mu}, \qquad
+             L = \dfrac{\rho}{1-\rho}, \qquad
+             L_q = \dfrac{\rho^{2}}{1-\rho}, \qquad
+             W = \dfrac{1}{\mu-\lambda}, \qquad
+             W_q = \dfrac{\rho}{\mu-\lambda}.$
+          </div>
+          <p>
+            $L$ is the mean number in the system, $L_q$ the mean number waiting, $W$ the mean time in system, and
+            $W_q$ the mean waiting time before service. These four are not independent — they are stitched together
+            by <strong>Little's law</strong>, which holds for essentially <em>any</em> stable queueing system,
+            M/M/1 or not:
+          </p>
+          <div class="formula">
+            <span class="flab">Little's law</span>
+            $L = \lambda\, W, \qquad L_q = \lambda\, W_q.$
+          </div>
+          <div class="keyidea">
+            <span class="klab">What we will check</span>
+            The simulator never uses these formulas. It just plays out arrivals and services and measures averages.
+            If the measured $\hat L,\hat W,\hat\rho$ match the boxed theory — and if $\hat L \approx \lambda\hat W$ —
+            then both the theory and the simulator are corroborated at once.
+          </div>
+          <div class="tags">
+            <span class="tag demo-link"><a href="./index.html#cont">exponential pdf — continuous demo</a></span>
+            <span class="tag demo-link"><a href="./course.html#program">Poisson process — session 11</a></span>
+            <span class="tag demo-link"><a href="./course.html#program">queuing theory — session 12</a></span>
+          </div>
+        </div>
+      </section>
+
+      <!-- 3. DESIGN ------------------------------------------------------ -->
+      <section class="demo" id="design">
+        <h2>2. Design</h2>
+        <p class="cap">Two modules, each "compute then corroborate". The chain is solved algebraically and confirmed by iteration; the queue is solved by formula and confirmed by event-driven simulation.</p>
+
+        <div class="figure">
+          <svg viewBox="0 0 760 250" role="img" aria-label="Pipeline: model definitions feed an analytic solver and a simulator, whose outputs are compared.">
+            <defs>
+              <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+                <path d="M0,0 L10,5 L0,10 z" fill="#8A8A92"/>
+              </marker>
+            </defs>
+            <!-- column: inputs -->
+            <rect x="20" y="30" width="180" height="64" rx="8" fill="#FFFFFF" stroke="#CDCDD4"/>
+            <text x="110" y="56" text-anchor="middle" font-family="Inter,sans-serif" font-size="13" font-weight="700" fill="#15151A">Transition matrix P</text>
+            <text x="110" y="76" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="11" fill="#8A8A92">4×4 row-stochastic</text>
+
+            <rect x="20" y="156" width="180" height="64" rx="8" fill="#FFFFFF" stroke="#CDCDD4"/>
+            <text x="110" y="182" text-anchor="middle" font-family="Inter,sans-serif" font-size="13" font-weight="700" fill="#15151A">Queue params λ, μ</text>
+            <text x="110" y="202" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="11" fill="#8A8A92">λ=1.2  μ=1.5</text>
+
+            <!-- column: methods -->
+            <rect x="300" y="14" width="180" height="46" rx="8" fill="rgba(67,56,202,0.10)" stroke="#4338CA"/>
+            <text x="390" y="34" text-anchor="middle" font-family="Inter,sans-serif" font-size="12" font-weight="700" fill="#4338CA">Eigenvector solve</text>
+            <text x="390" y="50" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="10" fill="#4B4B55">eig(Pᵀ), λ=1</text>
+
+            <rect x="300" y="70" width="180" height="46" rx="8" fill="#FFFFFF" stroke="#CDCDD4"/>
+            <text x="390" y="90" text-anchor="middle" font-family="Inter,sans-serif" font-size="12" font-weight="700" fill="#15151A">Power iteration</text>
+            <text x="390" y="106" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="10" fill="#4B4B55">μ ← μP until fixed</text>
+
+            <rect x="300" y="140" width="180" height="46" rx="8" fill="rgba(67,56,202,0.10)" stroke="#4338CA"/>
+            <text x="390" y="160" text-anchor="middle" font-family="Inter,sans-serif" font-size="12" font-weight="700" fill="#4338CA">M/M/1 formulas</text>
+            <text x="390" y="176" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="10" fill="#4B4B55">ρ, L, Lq, W, Wq</text>
+
+            <rect x="300" y="196" width="180" height="46" rx="8" fill="#FFFFFF" stroke="#CDCDD4"/>
+            <text x="390" y="216" text-anchor="middle" font-family="Inter,sans-serif" font-size="12" font-weight="700" fill="#15151A">Event-driven sim</text>
+            <text x="390" y="232" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="10" fill="#4B4B55">2×10⁵ customers</text>
+
+            <!-- column: compare -->
+            <rect x="580" y="40" width="160" height="64" rx="8" fill="#FFFFFF" stroke="#CDCDD4"/>
+            <text x="660" y="66" text-anchor="middle" font-family="Inter,sans-serif" font-size="12" font-weight="700" fill="#15151A">π: compare</text>
+            <text x="660" y="86" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="10" fill="#16A34A">match @ 1e-12</text>
+
+            <rect x="580" y="150" width="160" height="64" rx="8" fill="#FFFFFF" stroke="#CDCDD4"/>
+            <text x="660" y="176" text-anchor="middle" font-family="Inter,sans-serif" font-size="12" font-weight="700" fill="#15151A">metrics: compare</text>
+            <text x="660" y="196" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="10" fill="#16A34A">sim ≈ theory ✓</text>
+
+            <!-- arrows -->
+            <line x1="200" y1="55" x2="298" y2="37"  stroke="#8A8A92" stroke-width="1.4" marker-end="url(#arr)"/>
+            <line x1="200" y1="62" x2="298" y2="92"  stroke="#8A8A92" stroke-width="1.4" marker-end="url(#arr)"/>
+            <line x1="200" y1="188" x2="298" y2="163" stroke="#8A8A92" stroke-width="1.4" marker-end="url(#arr)"/>
+            <line x1="200" y1="195" x2="298" y2="218" stroke="#8A8A92" stroke-width="1.4" marker-end="url(#arr)"/>
+            <line x1="480" y1="37" x2="578" y2="62"  stroke="#8A8A92" stroke-width="1.4" marker-end="url(#arr)"/>
+            <line x1="480" y1="92" x2="578" y2="82"  stroke="#8A8A92" stroke-width="1.4" marker-end="url(#arr)"/>
+            <line x1="480" y1="163" x2="578" y2="172" stroke="#8A8A92" stroke-width="1.4" marker-end="url(#arr)"/>
+            <line x1="480" y1="218" x2="578" y2="192" stroke="#8A8A92" stroke-width="1.4" marker-end="url(#arr)"/>
+          </svg>
+          <figcaption>Architecture. Each model is attacked twice — an exact method and an empirical one — and the two outputs are compared. The whole script is pure functions of the inputs plus one fixed seed.</figcaption>
+        </div>
+
+        <p>
+          <strong>The chain.</strong> We use a 4-state "web-navigation / PageRank-lite" model: four pages of a tiny
+          site, with $P_{ij}$ the probability a reader on page&nbsp;$i$ clicks through to page&nbsp;$j$. The
+          stationary $\pi$ is then the long-run share of visits each page receives — a stripped-down PageRank.
+        </p>
+        <p>
+          <strong>The queue.</strong> A single request-handler (one server, e.g. a web worker) processes jobs FIFO.
+          Jobs arrive Poisson($\lambda$) and take Exponential($\mu$) to serve. We pick $\lambda=1.2$,
+          $\mu=1.5$ so that $\rho=0.8$ — busy but stable, the regime where queues actually bite.
+        </p>
+        <p>
+          <strong>Why event-driven.</strong> Rather than stepping a tiny clock, we generate all inter-arrival and
+          service times up front and compute each customer's start/departure with the Lindley recursion
+          $d_k = \max(a_k,\, d_{k-1}) + s_k$. Then $L$ comes from time-integrating the number-in-system over a
+          merged event timeline — an $O(n\log n)$ sort, no fixed time step, no discretization error.
+        </p>
+      </section>
+
+      <!-- 4. IMPLEMENTATION --------------------------------------------- -->
+      <section class="demo" id="build">
+        <h2>3. Step-by-step implementation</h2>
+        <p class="cap">Real, runnable NumPy. Paste the blocks in order into one file (<span class="mono">mm1_markov.py</span>) and run it; the printed output is reproduced verbatim in section 4.</p>
+
+        <div class="step">
+          <h3><span class="sn">3.1</span> Build the chain &amp; solve $\pi$ by eigenvector</h3>
+          <p>
+            Define the transition matrix and assert each row sums to 1. The stationary distribution is the
+            eigenvector of $P^\top$ whose eigenvalue is closest to 1, renormalized to sum to one.
+          </p>
+          <p class="code-cap"># mm1_markov.py — part 1 of 3</p>
+          <pre class="code"><code><span class="kw">import</span> numpy <span class="kw">as</span> np
+
+<span class="cmt"># 4-page "web navigation" chain: P[i,j] = P(go to page j | on page i)</span>
+P = np.array([
+    [<span class="num">0.10</span>, <span class="num">0.40</span>, <span class="num">0.30</span>, <span class="num">0.20</span>],
+    [<span class="num">0.20</span>, <span class="num">0.10</span>, <span class="num">0.40</span>, <span class="num">0.30</span>],
+    [<span class="num">0.25</span>, <span class="num">0.25</span>, <span class="num">0.10</span>, <span class="num">0.40</span>],
+    [<span class="num">0.30</span>, <span class="num">0.30</span>, <span class="num">0.30</span>, <span class="num">0.10</span>],
+])
+<span class="kw">assert</span> np.allclose(P.sum(axis=<span class="num">1</span>), <span class="num">1.0</span>)   <span class="cmt"># rows are probability distributions</span>
+
+<span class="kw">def</span> <span class="fn">stationary_eig</span>(P):
+    <span class="str">"""pi P = pi  &lt;=&gt;  pi is the left eigenvector of P for eigenvalue 1."""</span>
+    vals, vecs = np.linalg.eig(P.T)            <span class="cmt"># left eigvecs of P = eigvecs of P^T</span>
+    i = np.argmin(np.abs(vals - <span class="num">1.0</span>))         <span class="cmt"># pick eigenvalue closest to 1</span>
+    pi = np.real(vecs[:, i])
+    <span class="kw">return</span> pi / pi.sum()                        <span class="cmt"># normalise to a distribution</span>
+
+pi_eig = stationary_eig(P)</code></pre>
+        </div>
+
+        <div class="step">
+          <h3><span class="sn">3.2</span> Solve $\pi$ again by power iteration</h3>
+          <p>
+            Start from any distribution and repeatedly apply $\mu \leftarrow \mu P$. For an irreducible aperiodic
+            chain this converges geometrically to $\pi$. This is the algorithm behind PageRank.
+          </p>
+          <p class="code-cap"># mm1_markov.py — part 1 (cont.)</p>
+          <pre class="code"><code><span class="kw">def</span> <span class="fn">stationary_power</span>(P, tol=<span class="num">1e-14</span>, max_iter=<span class="num">100_000</span>):
+    <span class="str">"""Repeatedly push a distribution through P until it stops moving."""</span>
+    n = P.shape[<span class="num">0</span>]
+    mu = np.full(n, <span class="num">1.0</span> / n)                  <span class="cmt"># start uniform</span>
+    <span class="kw">for</span> _ <span class="kw">in</span> range(max_iter):
+        nxt = mu @ P
+        <span class="kw">if</span> np.max(np.abs(nxt - mu)) &lt; tol:
+            <span class="kw">return</span> nxt
+        mu = nxt
+    <span class="kw">return</span> mu
+
+pi_pow = stationary_power(P)
+
+<span class="kw">print</span>(<span class="str">"pi (eigenvector) :"</span>, np.round(pi_eig, <span class="num">6</span>))
+<span class="kw">print</span>(<span class="str">"pi (power iter)  :"</span>, np.round(pi_pow, <span class="num">6</span>))
+<span class="kw">print</span>(<span class="str">"agree?           :"</span>, np.allclose(pi_eig, pi_pow))
+<span class="kw">print</span>(<span class="str">"pi P == pi ?     :"</span>, np.allclose(pi_pow @ P, pi_pow))</code></pre>
+          <div class="keyidea">
+            <span class="klab">Note</span> The two methods are mathematically the same fixed-point problem
+            ($\pi P=\pi$) attacked differently — dense linear algebra vs. iteration. Power iteration is what scales
+            to web-sized graphs where a full eigendecomposition is impossible.
+          </div>
+        </div>
+
+        <div class="step">
+          <h3><span class="sn">3.3</span> Analytic M/M/1 metrics</h3>
+          <p>The closed forms from section&nbsp;1c, written once:</p>
+          <p class="code-cap"># mm1_markov.py — part 2 of 3</p>
+          <pre class="code"><code><span class="kw">def</span> <span class="fn">mm1_theory</span>(lam, mu):
+    <span class="str">"""Closed-form steady-state metrics for a stable M/M/1 queue (rho &lt; 1)."""</span>
+    <span class="kw">assert</span> lam &lt; mu, <span class="str">"unstable: arrivals outpace service (rho &gt;= 1)"</span>
+    rho = lam / mu
+    <span class="kw">return</span> {
+        <span class="str">"rho"</span>: rho,                       <span class="cmt"># utilization  = P(server busy)</span>
+        <span class="str">"L"</span>:   rho / (<span class="num">1</span> - rho),            <span class="cmt"># mean number in system</span>
+        <span class="str">"Lq"</span>:  rho**<span class="num">2</span> / (<span class="num">1</span> - rho),         <span class="cmt"># mean number waiting</span>
+        <span class="str">"W"</span>:   <span class="num">1</span> / (mu - lam),             <span class="cmt"># mean time in system</span>
+        <span class="str">"Wq"</span>:  rho / (mu - lam),           <span class="cmt"># mean wait before service</span>
+    }
+
+lam, mu = <span class="num">1.2</span>, <span class="num">1.5</span>                          <span class="cmt"># rho = 0.8: busy but stable</span>
+theory = mm1_theory(lam, mu)</code></pre>
+        </div>
+
+        <div class="step">
+          <h3><span class="sn">3.4</span> Simulate the queue (event-driven, Lindley recursion)</h3>
+          <p>
+            Draw all inter-arrival and service times, accumulate arrival epochs, then walk the Lindley recursion
+            to get each customer's service-start and departure. From those we read $W$ and $W_q$ directly; for $L$
+            we integrate the number-in-system over a merged, sorted timeline of $+1$ (arrival) and $-1$
+            (departure) events.
+          </p>
+          <p class="code-cap"># mm1_markov.py — part 3 of 3</p>
+          <pre class="code"><code><span class="kw">def</span> <span class="fn">simulate_mm1</span>(lam, mu, n_cust=<span class="num">200_000</span>, seed=<span class="num">42</span>):
+    <span class="str">"""Event-driven FIFO single-server queue. Returns measured metrics."""</span>
+    rng = np.random.default_rng(seed)
+    inter = rng.exponential(<span class="num">1.0</span> / lam, n_cust)   <span class="cmt"># gaps ~ Exp(lam)  (Poisson arrivals)</span>
+    serve = rng.exponential(<span class="num">1.0</span> / mu,  n_cust)   <span class="cmt"># service ~ Exp(mu)</span>
+    arrive = np.cumsum(inter)                       <span class="cmt"># arrival epochs a_k</span>
+
+    start  = np.empty(n_cust)
+    depart = np.empty(n_cust)
+    <span class="kw">for</span> k <span class="kw">in</span> range(n_cust):                        <span class="cmt"># Lindley: d_k = max(a_k, d_{k-1}) + s_k</span>
+        s = arrive[k] <span class="kw">if</span> k == <span class="num">0</span> <span class="kw">else</span> max(arrive[k], depart[k - <span class="num">1</span>])
+        start[k]  = s
+        depart[k] = s + serve[k]
+
+    W  = (depart - arrive).mean()                   <span class="cmt"># time in system</span>
+    Wq = (start  - arrive).mean()                   <span class="cmt"># time waiting</span>
+
+    <span class="cmt"># time-average L: integrate #-in-system over a merged event timeline</span>
+    t = np.concatenate([arrive, depart])
+    d = np.concatenate([np.ones(n_cust), -np.ones(n_cust)])
+    order = np.argsort(t, kind=<span class="str">"mergesort"</span>)     <span class="cmt"># stable sort of all events</span>
+    t, d = t[order], d[order]
+    n_in = np.cumsum(d)                             <span class="cmt"># number in system after each event</span>
+    dt   = np.diff(t)
+    L    = np.sum(n_in[:-<span class="num">1</span>] * dt) / (t[-<span class="num">1</span>] - t[<span class="num">0</span>])
+    util = serve.sum() / depart[-<span class="num">1</span>]              <span class="cmt"># fraction of time server is busy</span>
+    <span class="kw">return</span> {<span class="str">"rho"</span>: util, <span class="str">"L"</span>: L, <span class="str">"Lq"</span>: L - util, <span class="str">"W"</span>: W, <span class="str">"Wq"</span>: Wq}
+
+sim = simulate_mm1(lam, mu)
+
+<span class="cmt"># --- compare sim vs theory, and verify Little's law from measured numbers ---</span>
+<span class="kw">print</span>(<span class="str">f"</span><span class="str">{'metric':&lt;6}{'theory':&gt;12}{'sim':&gt;12}"</span><span class="str">)</span>
+<span class="kw">for</span> k <span class="kw">in</span> [<span class="str">"rho"</span>, <span class="str">"L"</span>, <span class="str">"Lq"</span>, <span class="str">"W"</span>, <span class="str">"Wq"</span>]:
+    <span class="kw">print</span>(<span class="str">f"</span><span class="str">{k:&lt;6}{theory[k]:&gt;12.4f}{sim[k]:&gt;12.4f}"</span><span class="str">)</span>
+<span class="kw">print</span>(<span class="str">f"Little's law  L = lam*W : </span><span class="str">{lam * sim['W']:.4f}</span><span class="str"> vs L_sim </span><span class="str">{sim['L']:.4f}</span><span class="str">"</span>)</code></pre>
+        </div>
+      </section>
+
+      <!-- 5. RESULTS ----------------------------------------------------- -->
+      <section class="demo" id="results">
+        <h2>4. Results</h2>
+        <p class="cap">Output of one run (seed 42, 200,000 customers). The chain's two solvers agree to machine precision; the queue simulation lands on the analytic metrics and satisfies Little's law.</p>
+
+        <div class="step">
+          <h3><span class="sn">4a</span> Stationary distribution of the chain</h3>
+          <pre class="out">pi (eigenvector) : [0.217292 0.256799 0.2714   0.254509]
+pi (power iter)  : [0.217292 0.256799 0.2714   0.254509]
+agree?           : True
+pi P == pi ?     : True</pre>
+          <p style="color:var(--ink-soft);font-size:0.87rem;line-height:1.6;margin:0.3rem 0;">
+            Both methods give the same $\pi$. Page&nbsp;3 is the most-visited (≈27.1%), page&nbsp;1 the least
+            (≈21.7%) — the long-run "PageRank" of this little site. Power iteration reached this from a uniform
+            start in a handful of steps:
+          </p>
+
+          <table class="data">
+            <caption>Power iteration converging to $\pi$ (starting from $\delta_1=[1,0,0,0]$).</caption>
+            <thead>
+              <tr><th>step $t$</th><th>$\mu_1$</th><th>$\mu_2$</th><th>$\mu_3$</th><th>$\mu_4$</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>1</td><td>0.1000</td><td>0.4000</td><td>0.3000</td><td>0.2000</td></tr>
+              <tr><td>2</td><td>0.2250</td><td>0.2150</td><td>0.2800</td><td>0.2800</td></tr>
+              <tr><td>3</td><td>0.2195</td><td>0.2655</td><td>0.2655</td><td>0.2495</td></tr>
+              <tr><td>5</td><td>0.2175</td><td>0.2568</td><td>0.2709</td><td>0.2548</td></tr>
+              <tr><td>8</td><td>0.2173</td><td>0.2568</td><td>0.2714</td><td>0.2545</td></tr>
+              <tr><td>$\infty$ ($\pi$)</td><td class="ok">0.2173</td><td class="ok">0.2568</td><td class="ok">0.2714</td><td class="ok">0.2545</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="step">
+          <h3><span class="sn">4b</span> M/M/1 queue — simulation vs. theory</h3>
+          <pre class="out">metric      theory         sim
+rho         0.8000      0.7990
+L           4.0000      3.9757
+Lq          3.2000      3.1767
+W           3.3333      3.3110
+Wq          2.6667      2.6450
+Little's law  L = lam*W : 3.9731 vs L_sim 3.9757</pre>
+
+          <table class="data">
+            <caption>Measured metrics vs. closed form ($\lambda=1.2$, $\mu=1.5$, $\rho=0.8$; 200k customers, seed 42).</caption>
+            <thead>
+              <tr><th>metric</th><th>symbol</th><th>theory</th><th>simulated</th><th>rel. error</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>Utilization</td><td>$\rho$</td><td>0.8000</td><td>0.7990</td><td class="ok">0.1%</td></tr>
+              <tr><td>Mean number in system</td><td>$L$</td><td>4.0000</td><td>3.9757</td><td class="ok">0.6%</td></tr>
+              <tr><td>Mean number waiting</td><td>$L_q$</td><td>3.2000</td><td>3.1767</td><td class="ok">0.7%</td></tr>
+              <tr><td>Mean time in system</td><td>$W$</td><td>3.3333</td><td>3.3110</td><td class="ok">0.7%</td></tr>
+              <tr><td>Mean wait before service</td><td>$W_q$</td><td>2.6667</td><td>2.6450</td><td class="ok">0.8%</td></tr>
+            </tbody>
+          </table>
+
+          <div class="keyidea">
+            <span class="klab">Reading the table</span>
+            Every measured metric is within ~1% of theory, and $\lambda\hat W = 1.2\times3.3110 = 3.973 \approx \hat L = 3.976$ —
+            Little's law confirmed straight from simulated averages, with no formula used to produce them. Residual
+            error is pure Monte-Carlo noise; it shrinks like $1/\sqrt{n}$ as you raise the customer count (the same
+            $1/\sqrt N$ convergence seen in the
+            <a href="./index.html#mc">Monte-Carlo $\pi$</a> and <a href="./index.html#clt">CLT</a> demos).
+          </div>
+        </div>
+      </section>
+
+      <!-- 6. LEARNING OUTCOMES ------------------------------------------ -->
+      <section class="demo" id="outcomes">
+        <h2>5. Mapping to learning outcomes</h2>
+        <p class="cap">How each piece of the project exercises a syllabus learning objective and the sessions behind it.</p>
+        <ul class="map-list">
+          <li><span class="oc">LO 1</span><span><strong>Fundamental concepts — random variables &amp; distributions.</strong> Inter-arrival and service times are drawn from the exponential distribution; the chain's rows are categorical distributions. Exercises the discrete/continuous foundation of sessions&nbsp;2 and&nbsp;10. <a href="./index.html#cont">(continuous demo)</a></span></li>
+          <li><span class="oc">LO 2</span><span><strong>Model stochastic processes — Markov chains &amp; Poisson processes.</strong> The core of the project: a transition matrix, its stationary distribution, and a Poisson arrival stream feeding the queue. Directly exercises sessions&nbsp;8, 9, 11. <a href="./course.html#program">(sessions 8–11)</a></span></li>
+          <li><span class="oc">LO 2</span><span><strong>Steady-state / long-run behaviour.</strong> Solving $\pi P=\pi$ two ways is exactly session&nbsp;8's "solving for steady-state probabilities"; the M/M/1 metrics are session&nbsp;12's "performance metrics: waiting time, queue length".</span></li>
+          <li><span class="oc">LO 4</span><span><strong>Apply probabilistic models to computing problems.</strong> The chain is a PageRank-lite web model; the queue is a request-handler capacity model. Both are concrete CS systems, demonstrating probabilistic thinking applied to algorithms and systems.</span></li>
+          <li><span class="oc">proto</span><span><strong>Group-work deliverable.</strong> A self-contained, reproducible prototype with documented construction — matching the "small prototype with details about construction" assessment criterion.</span></li>
+        </ul>
+      </section>
+
+      <!-- 7. EXTENSIONS -------------------------------------------------- -->
+      <section class="demo" id="extend">
+        <h2>6. Extensions</h2>
+        <p class="cap">Natural next steps, each a small change to the same code.</p>
+        <ul class="ext-list">
+          <li><span class="et">Continuous-time Markov chain (CTMC).</span> Replace the discrete transition matrix with a rate matrix $Q$ and solve $\pi Q = 0$ instead of $\pi P=\pi$. The M/M/1 queue is itself a CTMC on the state "number in system" with birth rate $\lambda$ and death rate $\mu$ — deriving $\pi_k=(1-\rho)\rho^k$ from $Q$ recovers $L=\rho/(1-\rho)$ analytically.</li>
+          <li><span class="et">M/M/c — multiple servers.</span> Add $c$ parallel servers and compare one fast server to several slow ones at equal total capacity. Requires the Erlang-C formula for $W_q$; the simulator change is a small priority-queue of server-free times.</li>
+          <li><span class="et">Full PageRank.</span> Add a damping factor $\alpha$ and a teleport vector: $P' = \alpha P + (1-\alpha)\,\tfrac{1}{n}\mathbf{1}\mathbf{1}^\top$. Power iteration on $P'$ is the real PageRank; this guarantees irreducibility even on a web graph with dangling pages.</li>
+          <li><span class="et">Absorbing chains.</span> Add an absorbing state and compute expected time to absorption via the fundamental matrix $N=(I-Q)^{-1}$ — exactly session&nbsp;9's "expected time to absorption".</li>
+          <li><span class="et">Confidence on the estimates.</span> Run the simulation across many seeds and put a CLT-based confidence interval around each measured metric — connecting back to the <a href="./index.html#ci">confidence-intervals</a> demo.</li>
+        </ul>
+        <div class="tags">
+          <span class="tag demo-link"><a href="./index.html#rw">↳ random walks demo</a></span>
+          <span class="tag demo-link"><a href="./index.html#disc">↳ discrete distributions demo</a></span>
+          <span class="tag demo-link"><a href="./course.html#program">↳ full course program</a></span>
+        </div>
+      </section>
+
+      <!-- 8. REFERENCES -------------------------------------------------- -->
+      <section class="demo" id="refs">
+        <h2>7. References</h2>
+        <ul class="biblio">
+          <li>Sheldon M. Ross. <span class="bk">Introduction to Probability Models</span>, 12th ed. — chapters on Markov chains, the exponential distribution &amp; the Poisson process, and queueing theory (M/M/1, Little's law). <span class="isbn">ISBN 9780128143476</span> <span style="color:var(--muted);font-size:0.8rem;">(course-recommended text)</span></li>
+          <li>Daphne Koller &amp; Nir Friedman. <span class="bk">Probabilistic Graphical Models: Principles and Techniques</span> — background on stationary distributions and inference. <span class="isbn">ISBN 9780262013192</span> <span style="color:var(--muted);font-size:0.8rem;">(course-recommended text)</span></li>
+          <li>J. R. Norris. <span class="bk">Markov Chains</span>, Cambridge University Press — rigorous treatment of irreducibility, aperiodicity and convergence to stationarity. <span class="isbn">ISBN 9780521633963</span></li>
+          <li>L. Page, S. Brin, R. Motwani, T. Winograd (1999). <span class="bk">The PageRank Citation Ranking: Bringing Order to the Web</span> — the stationary distribution of a web-navigation chain.</li>
+          <li>J. D. C. Little (1961). <span class="bk">A Proof for the Queuing Formula $L=\lambda W$</span>, Operations Research 9(3).</li>
+          <li>Course syllabus — <a href="./SYLLABUS.pdf" target="_blank">Probability for Computing Science (PCS-CSAI.2.M.A)</a>, sessions 8–12.</li>
+        </ul>
+      </section>
+    </main>
+
+    <footer>
+      <span>stats-lab — Andrea Montana · IE BCSAI</span>
+      <span class="more">
+        <a href="./index.html">demos</a>
+        <a href="./course.html">course</a>
+        <a href="https://github.com/andreaisabelmontana/stats-lab" target="_blank">source</a>
+      </span>
+    </footer>
+  </body>
+</html>
