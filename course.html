@@ -1,0 +1,503 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#4338CA" />
+    <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
+    <title>Probability for Computing Science · course outline</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" />
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+            onload="renderMathInElement(document.body, { delimiters: [{left:'$$', right:'$$', display:true},{left:'$', right:'$', display:false}], ignoredTags: ['option','script','textarea'] })"></script>
+
+    <link rel="stylesheet" href="./style.css" />
+
+    <!-- scoped additions — reuse :root tokens, no new palette -->
+    <style>
+      .meta-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+        gap: 0.65rem;
+        margin-top: 0.4rem;
+      }
+      .meta-grid .cell {
+        border: 1px solid var(--rule);
+        border-radius: 6px;
+        padding: 0.55rem 0.7rem;
+        background: var(--paper);
+      }
+      .meta-grid .cell .k { color: var(--muted); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.04em; }
+      .meta-grid .cell .v { color: var(--ink); font-weight: 700; font-size: 0.9rem; margin-top: 0.15rem; }
+
+      .lead { color: var(--ink-soft); font-size: 0.9rem; line-height: 1.65; margin: 0.2rem 0 0; }
+
+      .obj-list { list-style: none; padding: 0; margin: 0.4rem 0 0; display: flex; flex-direction: column; gap: 0.5rem; }
+      .obj-list li { display: flex; gap: 0.6rem; align-items: flex-start; color: var(--ink-soft); font-size: 0.88rem; line-height: 1.55; }
+      .obj-list li::before {
+        content: ''; flex: 0 0 auto; width: 8px; height: 8px; border-radius: 2px;
+        background: var(--accent); margin-top: 0.38em;
+      }
+
+      /* visual % bars (methodology + assessment) */
+      .bars { display: flex; flex-direction: column; gap: 0.7rem; margin-top: 0.3rem; }
+      .bar-row .bar-head { display: flex; justify-content: space-between; align-items: baseline; font-size: 0.84rem; }
+      .bar-row .bar-head .lab { color: var(--ink-soft); font-weight: 500; }
+      .bar-row .bar-head .pct { color: var(--ink); font-weight: 700; font-family: var(--font-mono); }
+      .bar-row .bar-head .pct .hrs { color: var(--muted); font-weight: 500; font-size: 0.78rem; margin-left: 0.4em; }
+      .bar-track { margin-top: 0.28rem; height: 8px; border-radius: 999px; background: var(--rule); overflow: hidden; }
+      .bar-fill { height: 100%; border-radius: 999px; background: var(--accent); }
+      .bar-fill.soft { background: var(--accent-soft); border: 1px solid var(--accent); }
+
+      .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 1.4rem; }
+      .two-col h3 { font-size: 0.85rem; font-weight: 700; margin: 0 0 0.55rem; color: var(--ink); }
+      @media (max-width: 760px) { .two-col { grid-template-columns: 1fr; gap: 1.2rem; } }
+
+      /* module group */
+      .module { margin-top: 1.1rem; }
+      .module:first-of-type { margin-top: 0.3rem; }
+      .module > .mod-head {
+        display: flex; align-items: baseline; gap: 0.6rem;
+        font-size: 0.82rem; font-weight: 700; letter-spacing: 0.02em;
+        color: var(--accent); text-transform: uppercase;
+        padding-bottom: 0.35rem; border-bottom: 1px solid var(--rule);
+      }
+      .module > .mod-head .mod-sub { color: var(--muted); font-weight: 500; text-transform: none; letter-spacing: 0; }
+
+      /* timeline */
+      .timeline { list-style: none; margin: 0; padding: 0.6rem 0 0 0; }
+      .timeline > li {
+        position: relative; padding: 0 0 1.1rem 2.6rem;
+        border-left: 1px solid var(--rule); margin-left: 0.9rem;
+      }
+      .timeline > li:last-child { padding-bottom: 0.2rem; }
+      .timeline > li .num {
+        position: absolute; left: -0.95rem; top: -0.1rem;
+        width: 1.85rem; height: 1.85rem; border-radius: 999px;
+        background: var(--paper); border: 1px solid var(--rule-h);
+        display: flex; align-items: center; justify-content: center;
+        font-family: var(--font-mono); font-weight: 600; font-size: 0.78rem; color: var(--ink);
+      }
+      .timeline > li .s-title { font-weight: 700; font-size: 0.92rem; color: var(--ink); }
+      .timeline > li .s-obj { color: var(--ink-soft); font-size: 0.85rem; margin: 0.2rem 0 0.5rem; line-height: 1.55; }
+      .timeline > li ul.topics { margin: 0.1rem 0 0.55rem; padding-left: 1.1rem; }
+      .timeline > li ul.topics li { color: var(--ink-soft); font-size: 0.84rem; line-height: 1.5; }
+      .tags { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.2rem; }
+      .tag {
+        font-size: 0.72rem; font-family: var(--font-mono); font-weight: 500;
+        color: var(--ink-soft); background: var(--bg);
+        border: 1px solid var(--rule); border-radius: 999px;
+        padding: 0.12em 0.6em;
+      }
+      .tag.read { color: var(--accent); border-color: var(--accent); background: var(--accent-soft); }
+      .tag a { color: inherit; border: 0; }
+      .tag a:hover { border: 0; text-decoration: underline; }
+
+      .biblio { list-style: none; padding: 0; margin: 0.3rem 0 0; display: flex; flex-direction: column; gap: 0.6rem; }
+      .biblio li { color: var(--ink-soft); font-size: 0.87rem; line-height: 1.5; }
+      .biblio li .bk { color: var(--ink); font-style: italic; }
+      .biblio li .isbn { color: var(--muted); font-family: var(--font-mono); font-size: 0.76rem; }
+
+      .note { color: var(--muted); font-size: 0.8rem; margin-top: 0.8rem; line-height: 1.55; }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div class="title">
+        <span class="dot"></span><strong>Probability for Computing Science</strong>
+        <span class="sub">course outline · IE BCSAI</span>
+      </div>
+      <nav>
+        <a href="./index.html">← interactive demos</a>
+        <a href="#overview">overview</a>
+        <a href="#objectives">objectives</a>
+        <a href="#method">method &amp; grading</a>
+        <a href="#program">program</a>
+        <a href="#biblio">bibliography</a>
+        <a href="./SYLLABUS.pdf" target="_blank">syllabus PDF</a>
+      </nav>
+    </header>
+
+    <main>
+      <!-- (a) OVERVIEW + META ------------------------------------------- -->
+      <section class="demo" id="overview">
+        <h2>Course overview</h2>
+        <p class="cap">An in-depth course on probability theory tailored to modern computing — from discrete random variables to Bayesian networks, Markov chains and the Poisson process.</p>
+        <p class="lead">
+          Probability for Computing Science equips students with a solid foundation in probability theory,
+          tailored to the needs of modern computing. Emphasizing both theoretical rigor and practical relevance,
+          the course explores discrete and continuous random variables, conditional probability, Markov chains,
+          Poisson processes and Bayesian networks. These probabilistic tools underpin many core areas in computer
+          science — algorithms, machine learning, data analysis and artificial intelligence. Through a combination
+          of conceptual insights and hands-on examples, students learn to model uncertainty, reason under
+          incomplete information, and apply probabilistic thinking to solve complex computational problems.
+          Every concept below has a matching <a href="./index.html">interactive demo</a> you can play with.
+        </p>
+        <div class="meta-grid">
+          <div class="cell"><div class="k">Program</div><div class="v">BCSAI — Computer Science &amp; AI</div></div>
+          <div class="cell"><div class="k">Code</div><div class="v">PCS-CSAI.2.M.A</div></div>
+          <div class="cell"><div class="k">Area</div><div class="v">Mathematics</div></div>
+          <div class="cell"><div class="k">Sessions</div><div class="v">15 (live, in-person)</div></div>
+          <div class="cell"><div class="k">Credits</div><div class="v">3.0 ECTS</div></div>
+          <div class="cell"><div class="k">Academic year</div><div class="v">2025–26</div></div>
+          <div class="cell"><div class="k">Degree course</div><div class="v">Second</div></div>
+          <div class="cell"><div class="k">Semester</div><div class="v">2º</div></div>
+          <div class="cell"><div class="k">Category</div><div class="v">Compulsory</div></div>
+          <div class="cell"><div class="k">Language</div><div class="v">English</div></div>
+          <div class="cell"><div class="k">Professor</div><div class="v">Manuele Leonelli</div></div>
+          <div class="cell"><div class="k">Contact</div><div class="v">mleonelli@faculty.ie.edu</div></div>
+        </div>
+      </section>
+
+      <!-- (b) LEARNING OBJECTIVES --------------------------------------- -->
+      <section class="demo" id="objectives">
+        <h2>Learning objectives</h2>
+        <p class="cap">By the end of the course, students will be able to apply key probabilistic tools in both academic and professional contexts.</p>
+        <ul class="obj-list">
+          <li>Understand and apply fundamental concepts of probability, including random variables, distributions, independence, and conditional probability.</li>
+          <li>Analyze and model stochastic processes such as Markov chains and Poisson processes.</li>
+          <li>Construct and interpret Bayesian networks to model complex dependencies and support probabilistic inference.</li>
+          <li>Use probabilistic models to solve problems in computing science domains such as algorithms, machine learning, and artificial intelligence.</li>
+        </ul>
+      </section>
+
+      <!-- (c) METHODOLOGY + ASSESSMENT ---------------------------------- -->
+      <section class="demo" id="method">
+        <h2>Methodology &amp; assessment</h2>
+        <p class="cap">IE's collaborative, active and applied teaching method — 75 estimated hours of student work — paired with continuous evaluation.</p>
+        <div class="two-col">
+          <div>
+            <h3>Learning activities <span class="mono" style="color:var(--muted);font-weight:500">· 75.0 h total</span></h3>
+            <div class="bars">
+              <div class="bar-row">
+                <div class="bar-head"><span class="lab">Lectures</span><span class="pct">26.7%<span class="hrs">20.0 h</span></span></div>
+                <div class="bar-track"><div class="bar-fill" style="width:26.7%"></div></div>
+              </div>
+              <div class="bar-row">
+                <div class="bar-head"><span class="lab">Group work</span><span class="pct">26.7%<span class="hrs">20.0 h</span></span></div>
+                <div class="bar-track"><div class="bar-fill" style="width:26.7%"></div></div>
+              </div>
+              <div class="bar-row">
+                <div class="bar-head"><span class="lab">Individual studying</span><span class="pct">20.0%<span class="hrs">15.0 h</span></span></div>
+                <div class="bar-track"><div class="bar-fill" style="width:20%"></div></div>
+              </div>
+              <div class="bar-row">
+                <div class="bar-head"><span class="lab">Discussions</span><span class="pct">13.3%<span class="hrs">10.0 h</span></span></div>
+                <div class="bar-track"><div class="bar-fill" style="width:13.3%"></div></div>
+              </div>
+              <div class="bar-row">
+                <div class="bar-head"><span class="lab">Exercises, async &amp; field work</span><span class="pct">13.3%<span class="hrs">10.0 h</span></span></div>
+                <div class="bar-track"><div class="bar-fill" style="width:13.3%"></div></div>
+              </div>
+            </div>
+          </div>
+          <div>
+            <h3>Assessment weighting</h3>
+            <div class="bars">
+              <div class="bar-row">
+                <div class="bar-head"><span class="lab">Final exam <span style="color:var(--muted);font-weight:500">· MCQ, 3.5 to pass</span></span><span class="pct">35%</span></div>
+                <div class="bar-track"><div class="bar-fill" style="width:35%"></div></div>
+              </div>
+              <div class="bar-row">
+                <div class="bar-head"><span class="lab">Group work <span style="color:var(--muted);font-weight:500">· prototype</span></span><span class="pct">25%</span></div>
+                <div class="bar-track"><div class="bar-fill" style="width:25%"></div></div>
+              </div>
+              <div class="bar-row">
+                <div class="bar-head"><span class="lab">Group presentation <span style="color:var(--muted);font-weight:500">· non-technical</span></span><span class="pct">20%</span></div>
+                <div class="bar-track"><div class="bar-fill" style="width:20%"></div></div>
+              </div>
+              <div class="bar-row">
+                <div class="bar-head"><span class="lab">Class participation</span><span class="pct">20%</span></div>
+                <div class="bar-track"><div class="bar-fill" style="width:20%"></div></div>
+              </div>
+            </div>
+            <p class="note">
+              <strong style="color:var(--ink-soft)">AI policy:</strong> generative AI is encouraged for the group project to develop an
+              informed, critical perspective — but its use must be acknowledged, and outputs validated.
+              80% attendance is required; the June/July re-sit is a single comprehensive exam (max grade 8.0).
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- (d) FULL PROGRAM ---------------------------------------------- -->
+      <section class="demo" id="program">
+        <h2>Program — 15 sessions</h2>
+        <p class="cap">Every session is live and in-person. Reading tags link to the two recommended texts; demo tags jump to the matching interactive visualization.</p>
+
+        <!-- MODULE 1 -->
+        <div class="module">
+          <div class="mod-head">Module I — Foundations <span class="mod-sub">discrete probability &amp; Bayes' theorem</span></div>
+          <ol class="timeline">
+            <li>
+              <span class="num">1</span>
+              <div class="s-title">Introduction to the course</div>
+              <p class="s-obj">Set expectations and motivate probability through a concrete computing application: the spam filter.</p>
+              <ul class="topics">
+                <li>Overview of the course structure and expectations</li>
+                <li>Review of basic probability concepts</li>
+                <li>Discussion of spam filters</li>
+                <li>Implementing a simple spam filter</li>
+              </ul>
+              <div class="tags">
+                <span class="tag read">Ross ch. 1</span>
+                <span class="tag"><a href="./index.html#prob">demo · probability (Venn)</a></span>
+                <span class="tag"><a href="./index.html#bayes">demo · Bayes / base-rate</a></span>
+              </div>
+            </li>
+            <li>
+              <span class="num">2</span>
+              <div class="s-title">Review of discrete probability</div>
+              <p class="s-obj">Consolidate the discrete toolkit — distributions, conditioning and the rule that powers inference.</p>
+              <ul class="topics">
+                <li>Fundamental principles of discrete probability</li>
+                <li>Probability mass functions and distributions</li>
+                <li>Conditional probability and independence</li>
+                <li>Bayes theorem</li>
+              </ul>
+              <div class="tags">
+                <span class="tag read">Ross ch. 1–2</span>
+                <span class="tag"><a href="./index.html#disc">demo · discrete distributions</a></span>
+                <span class="tag"><a href="./index.html#prob">demo · conditional probability</a></span>
+              </div>
+            </li>
+          </ol>
+        </div>
+
+        <!-- MODULE 2 -->
+        <div class="module">
+          <div class="mod-head">Module II — Bayesian networks <span class="mod-sub">structure, independence &amp; inference</span></div>
+          <ol class="timeline">
+            <li>
+              <span class="num">3</span>
+              <div class="s-title">Introduction to Bayesian networks</div>
+              <p class="s-obj">Represent joint distributions compactly as a directed graph plus conditional probability tables.</p>
+              <ul class="topics">
+                <li>Basic concepts of Bayesian networks</li>
+                <li>Structure and graphical representation</li>
+                <li>Conditional probability tables (CPTs)</li>
+                <li>Simple examples of Bayesian networks</li>
+              </ul>
+              <div class="tags">
+                <span class="tag read">Koller &amp; Friedman ch. 3</span>
+                <span class="tag"><a href="./index.html#bayes">demo · Bayes</a></span>
+              </div>
+            </li>
+            <li>
+              <span class="num">4</span>
+              <div class="s-title">Conditional independence</div>
+              <p class="s-obj">Read independence relations directly off the structure of a network.</p>
+              <ul class="topics">
+                <li>Definition and importance of conditional independence</li>
+                <li>Identifying conditional independence in Bayesian networks</li>
+                <li>Practical examples and exercises</li>
+              </ul>
+              <div class="tags">
+                <span class="tag read">Koller &amp; Friedman ch. 3</span>
+              </div>
+            </li>
+            <li>
+              <span class="num">5</span>
+              <div class="s-title">D-separation</div>
+              <p class="s-obj">Apply the graphical d-separation criterion to decide which variables are independent given evidence.</p>
+              <ul class="topics">
+                <li>Concept of d-separation in Bayesian networks</li>
+                <li>Rules for determining d-separation</li>
+                <li>Using d-separation to infer independence</li>
+                <li>Examples and hands-on practice with Bayesian networks</li>
+              </ul>
+              <div class="tags">
+                <span class="tag read">Koller &amp; Friedman ch. 3</span>
+              </div>
+            </li>
+            <li>
+              <span class="num">6</span>
+              <div class="s-title">Inference and sampling</div>
+              <p class="s-obj">Compute posteriors exactly where feasible, and approximate them by sampling when it is not.</p>
+              <ul class="topics">
+                <li>Methods of probabilistic inference</li>
+                <li>Exact inference vs. approximate inference</li>
+                <li>Introduction to sampling methods</li>
+              </ul>
+              <div class="tags">
+                <span class="tag read">Koller &amp; Friedman ch. 9–12</span>
+                <span class="tag"><a href="./index.html#mc">demo · Monte Carlo</a></span>
+                <span class="tag"><a href="./index.html#clt">demo · CLT (sampling)</a></span>
+              </div>
+            </li>
+            <li>
+              <span class="num">7</span>
+              <div class="s-title">Naive Bayes model</div>
+              <p class="s-obj">Specialize Bayesian reasoning into a fast, surprisingly effective classifier.</p>
+              <ul class="topics">
+                <li>Structure and assumptions of the Naive Bayes model</li>
+                <li>Training and testing a Naive Bayes classifier</li>
+                <li>Applications in image classification and spam filtering</li>
+              </ul>
+              <div class="tags">
+                <span class="tag read">Koller &amp; Friedman ch. 17</span>
+                <span class="tag"><a href="./index.html#bayes">demo · Bayes</a></span>
+              </div>
+            </li>
+          </ol>
+        </div>
+
+        <!-- MODULE 3 -->
+        <div class="module">
+          <div class="mod-head">Module III — Stochastic processes <span class="mod-sub">Markov chains</span></div>
+          <ol class="timeline">
+            <li>
+              <span class="num">8</span>
+              <div class="s-title">Markov chains — Part I</div>
+              <p class="s-obj">Model memoryless dynamics with transition matrices and find their long-run behavior.</p>
+              <ul class="topics">
+                <li>Definition and properties of Markov chains</li>
+                <li>Transition matrices and state diagrams</li>
+                <li>Examples of Markov chains in computing</li>
+                <li>Solving for steady-state probabilities</li>
+              </ul>
+              <div class="tags">
+                <span class="tag read">Ross ch. 4</span>
+                <span class="tag"><a href="./index.html#rw">demo · random walks</a></span>
+              </div>
+            </li>
+            <li>
+              <span class="num">9</span>
+              <div class="s-title">Markov chains — Part II</div>
+              <p class="s-obj">Tackle absorbing chains and the expected time until the process is trapped.</p>
+              <ul class="topics">
+                <li>Advanced topics in Markov chains</li>
+                <li>Absorbing states and expected time to absorption</li>
+                <li>Hands-on exercises with Markov chain models</li>
+              </ul>
+              <div class="tags">
+                <span class="tag read">Ross ch. 4</span>
+                <span class="tag"><a href="./index.html#rw">demo · random walks</a></span>
+              </div>
+            </li>
+          </ol>
+        </div>
+
+        <!-- MODULE 4 -->
+        <div class="module">
+          <div class="mod-head">Module IV — Continuous models <span class="mod-sub">exponential, Poisson &amp; queues</span></div>
+          <ol class="timeline">
+            <li>
+              <span class="num">10</span>
+              <div class="s-title">Continuous random variables &amp; the exponential distribution</div>
+              <p class="s-obj">Move from masses to densities and meet the memoryless exponential distribution.</p>
+              <ul class="topics">
+                <li>Introduction to continuous random variables</li>
+                <li>Probability density functions (PDFs)</li>
+                <li>Properties of the exponential distribution</li>
+                <li>Applications in reliability and network modeling</li>
+              </ul>
+              <div class="tags">
+                <span class="tag read">Ross ch. 5</span>
+                <span class="tag"><a href="./index.html#cont">demo · continuous distributions</a></span>
+              </div>
+            </li>
+            <li>
+              <span class="num">11</span>
+              <div class="s-title">The Poisson process</div>
+              <p class="s-obj">Count events in time and connect the Poisson and exponential distributions.</p>
+              <ul class="topics">
+                <li>Definition and characteristics of the Poisson process</li>
+                <li>Relationship between the Poisson and exponential distributions</li>
+                <li>Hands-on problems involving Poisson processes</li>
+              </ul>
+              <div class="tags">
+                <span class="tag read">Ross ch. 5</span>
+                <span class="tag"><a href="./index.html#disc">demo · Poisson (discrete)</a></span>
+                <span class="tag"><a href="./index.html#cont">demo · exponential</a></span>
+              </div>
+            </li>
+            <li>
+              <span class="num">12</span>
+              <div class="s-title">Queuing theory</div>
+              <p class="s-obj">Combine arrivals and service into the canonical M/M/1 queue and read off its performance.</p>
+              <ul class="topics">
+                <li>Basic concepts and definitions in queuing theory</li>
+                <li>The M/M/1 queuing model</li>
+                <li>Performance metrics: waiting time, queue length, etc.</li>
+              </ul>
+              <div class="tags">
+                <span class="tag read">Ross ch. 8</span>
+              </div>
+            </li>
+          </ol>
+        </div>
+
+        <!-- MODULE 5 -->
+        <div class="module">
+          <div class="mod-head">Module V — Projects &amp; assessment <span class="mod-sub">presentations, review &amp; final exam</span></div>
+          <ol class="timeline">
+            <li>
+              <span class="num">13</span>
+              <div class="s-title">Group presentations and review</div>
+              <p class="s-obj">Present the group Bayesian-network projects and consolidate for the exam.</p>
+              <ul class="topics">
+                <li>Groups present their Bayesian network projects</li>
+                <li>Discussion of past exams and final questions</li>
+              </ul>
+              <div class="tags">
+                <span class="tag"><a href="./index.html#bayes">demo · Bayes</a></span>
+              </div>
+            </li>
+            <li>
+              <span class="num">14</span>
+              <div class="s-title">Group presentations and review</div>
+              <p class="s-obj">Continue project presentations and final exam preparation.</p>
+              <ul class="topics">
+                <li>Groups present their Bayesian network projects</li>
+                <li>Discussion of past exams and final questions</li>
+              </ul>
+              <div class="tags">
+                <span class="tag"><a href="./index.html#bayes">demo · Bayes</a></span>
+              </div>
+            </li>
+            <li>
+              <span class="num">15</span>
+              <div class="s-title">Final exam</div>
+              <p class="s-obj">Comprehensive multiple-choice exam covering the full program (35% of the grade, 3.5 to pass).</p>
+              <ul class="topics">
+                <li>Multiple-choice questions across all modules</li>
+              </ul>
+            </li>
+          </ol>
+        </div>
+      </section>
+
+      <!-- BIBLIOGRAPHY -------------------------------------------------- -->
+      <section class="demo" id="biblio">
+        <h2>Bibliography</h2>
+        <p class="cap">Recommended texts. Reading tags throughout the program point back to these.</p>
+        <ul class="biblio">
+          <li>
+            Daphne Koller and Nir Friedman. <span class="bk">Probabilistic Graphical Models: Principles and Techniques.</span>
+            <span class="isbn">ISBN 9780262013192 (Digital)</span>
+          </li>
+          <li>
+            Sheldon Ross. <span class="bk">Introduction to Probability Models.</span>
+            <span class="isbn">ISBN 9780128143476 (Digital)</span>
+          </li>
+        </ul>
+        <p class="note">Reading-chapter mappings above are indicative, aligning each session's topics to the relevant chapters of the recommended texts.</p>
+      </section>
+    </main>
+
+    <footer>
+      <span>stats-lab — Andrea Montana · IE BCSAI</span>
+      <span class="more">
+        <a href="./index.html">interactive demos</a>
+        <a href="./SYLLABUS.pdf" target="_blank">syllabus PDF</a>
+        <a href="https://github.com/andreaisabelmontana/stats-lab" target="_blank">source</a>
+      </span>
+    </footer>
+  </body>
+</html>
