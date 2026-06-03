@@ -62,12 +62,31 @@
       .module { margin-top: 1.1rem; }
       .module:first-of-type { margin-top: 0.3rem; }
       .module > .mod-head {
-        display: flex; align-items: baseline; gap: 0.6rem;
+        display: flex; align-items: baseline; gap: 0.6rem; flex-wrap: wrap;
         font-size: 0.82rem; font-weight: 700; letter-spacing: 0.02em;
         color: var(--accent); text-transform: uppercase;
         padding-bottom: 0.35rem; border-bottom: 1px solid var(--rule);
       }
       .module > .mod-head .mod-sub { color: var(--muted); font-weight: 500; text-transform: none; letter-spacing: 0; }
+
+      /* module intro: overview + learning outcomes */
+      .mod-intro {
+        margin: 0.6rem 0 0.2rem;
+        padding: 0.75rem 0.85rem;
+        background: var(--accent-soft);
+        border: 1px solid var(--rule);
+        border-radius: 8px;
+      }
+      .mod-intro p { margin: 0; color: var(--ink-soft); font-size: 0.86rem; line-height: 1.6; }
+      .mod-intro .oc-head {
+        margin: 0.6rem 0 0.3rem; font-size: 0.72rem; font-weight: 700;
+        text-transform: uppercase; letter-spacing: 0.04em; color: var(--accent);
+      }
+      .mod-intro ul.outcomes { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.32rem; }
+      .mod-intro ul.outcomes li { display: flex; gap: 0.55rem; align-items: flex-start; color: var(--ink-soft); font-size: 0.84rem; line-height: 1.5; }
+      .mod-intro ul.outcomes li::before {
+        content: '→'; flex: 0 0 auto; color: var(--accent); font-weight: 700; font-family: var(--font-mono);
+      }
 
       /* timeline */
       .timeline { list-style: none; margin: 0; padding: 0.6rem 0 0 0; }
@@ -86,7 +105,34 @@
       .timeline > li .s-title { font-weight: 700; font-size: 0.92rem; color: var(--ink); }
       .timeline > li .s-obj { color: var(--ink-soft); font-size: 0.85rem; margin: 0.2rem 0 0.5rem; line-height: 1.55; }
       .timeline > li ul.topics { margin: 0.1rem 0 0.55rem; padding-left: 1.1rem; }
-      .timeline > li ul.topics li { color: var(--ink-soft); font-size: 0.84rem; line-height: 1.5; }
+      .timeline > li ul.topics li { color: var(--ink-soft); font-size: 0.84rem; line-height: 1.55; margin-bottom: 0.2rem; }
+      .timeline > li ul.topics li .tn { color: var(--ink); font-weight: 600; }
+
+      /* formula + worked-example blocks inside a session */
+      .formula {
+        margin: 0.45rem 0 0.55rem;
+        padding: 0.5rem 0.7rem;
+        border-left: 2px solid var(--accent);
+        background: var(--bg);
+        border-radius: 0 6px 6px 0;
+        font-size: 0.85rem; color: var(--ink-soft); line-height: 1.6;
+      }
+      .formula .flab {
+        display: block; font-size: 0.68rem; font-weight: 700; text-transform: uppercase;
+        letter-spacing: 0.05em; color: var(--accent); margin-bottom: 0.25rem;
+      }
+      .keyidea {
+        margin: 0.45rem 0 0.55rem;
+        padding: 0.5rem 0.7rem;
+        border: 1px dashed var(--rule-h);
+        border-radius: 6px;
+        font-size: 0.84rem; color: var(--ink-soft); line-height: 1.6;
+      }
+      .keyidea .klab {
+        font-size: 0.68rem; font-weight: 700; text-transform: uppercase;
+        letter-spacing: 0.05em; color: var(--muted); margin-right: 0.5em;
+      }
+
       .tags { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.2rem; }
       .tag {
         font-size: 0.72rem; font-family: var(--font-mono); font-weight: 500;
@@ -97,13 +143,29 @@
       .tag.read { color: var(--accent); border-color: var(--accent); background: var(--accent-soft); }
       .tag a { color: inherit; border: 0; }
       .tag a:hover { border: 0; text-decoration: underline; }
+      .read-note { color: var(--muted); font-size: 0.78rem; margin: 0.35rem 0 0; line-height: 1.5; }
+      .read-note .rn { color: var(--ink-soft); font-weight: 600; }
 
-      .biblio { list-style: none; padding: 0; margin: 0.3rem 0 0; display: flex; flex-direction: column; gap: 0.6rem; }
-      .biblio li { color: var(--ink-soft); font-size: 0.87rem; line-height: 1.5; }
+      /* glossary */
+      .glossary {
+        list-style: none; padding: 0; margin: 0.4rem 0 0;
+        display: grid; grid-template-columns: 1fr 1fr; gap: 0.55rem 1.4rem;
+      }
+      @media (max-width: 760px) { .glossary { grid-template-columns: 1fr; } }
+      .glossary li { color: var(--ink-soft); font-size: 0.85rem; line-height: 1.55; }
+      .glossary li .term { color: var(--ink); font-weight: 700; }
+
+      .biblio { list-style: none; padding: 0; margin: 0.3rem 0 0; display: flex; flex-direction: column; gap: 0.7rem; }
+      .biblio li { color: var(--ink-soft); font-size: 0.87rem; line-height: 1.55; }
       .biblio li .bk { color: var(--ink); font-style: italic; }
       .biblio li .isbn { color: var(--muted); font-family: var(--font-mono); font-size: 0.76rem; }
+      .biblio li .uses { display: block; margin-top: 0.2rem; color: var(--muted); font-size: 0.8rem; }
+      .biblio li .uses .us { color: var(--ink-soft); font-weight: 600; }
 
       .note { color: var(--muted); font-size: 0.8rem; margin-top: 0.8rem; line-height: 1.55; }
+      .deliver { list-style: none; padding: 0; margin: 0.5rem 0 0; display: flex; flex-direction: column; gap: 0.6rem; }
+      .deliver li { color: var(--ink-soft); font-size: 0.84rem; line-height: 1.55; border-left: 2px solid var(--rule-h); padding-left: 0.65rem; }
+      .deliver li .dt { color: var(--ink); font-weight: 700; }
     </style>
   </head>
   <body>
@@ -118,6 +180,7 @@
         <a href="#objectives">objectives</a>
         <a href="#method">method &amp; grading</a>
         <a href="#program">program</a>
+        <a href="#glossary">key concepts</a>
         <a href="#biblio">bibliography</a>
         <a href="./SYLLABUS.pdf" target="_blank">syllabus PDF</a>
       </nav>
@@ -138,6 +201,16 @@
           incomplete information, and apply probabilistic thinking to solve complex computational problems.
           Every concept below has a matching <a href="./index.html">interactive demo</a> you can play with.
         </p>
+        <p class="lead">
+          The 15 sessions are grouped into five modules. <strong>Module&nbsp;I</strong> refreshes the discrete
+          probability toolkit and Bayes' theorem; <strong>Module&nbsp;II</strong> builds Bayesian networks as
+          a compact, graphical language for joint distributions and inference; <strong>Module&nbsp;III</strong>
+          turns to stochastic dynamics with Markov chains; <strong>Module&nbsp;IV</strong> moves to continuous
+          time with the exponential distribution, the Poisson process and queues; and <strong>Module&nbsp;V</strong>
+          consolidates everything through group project presentations, review and the final exam. The running
+          example — a spam filter — is introduced in session&nbsp;1 and reappears as a Naive Bayes classifier in
+          session&nbsp;7, tying probabilistic theory to a concrete computing application.
+        </p>
         <div class="meta-grid">
           <div class="cell"><div class="k">Program</div><div class="v">BCSAI — Computer Science &amp; AI</div></div>
           <div class="cell"><div class="k">Code</div><div class="v">PCS-CSAI.2.M.A</div></div>
@@ -152,24 +225,33 @@
           <div class="cell"><div class="k">Professor</div><div class="v">Manuele Leonelli</div></div>
           <div class="cell"><div class="k">Contact</div><div class="v">mleonelli@faculty.ie.edu</div></div>
         </div>
+        <p class="note">
+          <strong style="color:var(--ink-soft)">About the instructor:</strong> Manuele Leonelli is an Assistant
+          Professor in the School of Science and Technology at IE University (PhD in Statistics, University of
+          Warwick, 2015). His research centers on probabilistic graphical models for decision-making under
+          uncertainty and inference over extreme values, with published work in <span class="mono">JMLR</span>,
+          <span class="mono">Information Sciences</span> and <span class="mono">Statistics and Computing</span>.
+          Office hours are on request by email. Estimated student workload is 75 hours total. Class category:
+          compulsory. Campus: Madrid / Segovia.
+        </p>
       </section>
 
       <!-- (b) LEARNING OBJECTIVES --------------------------------------- -->
       <section class="demo" id="objectives">
         <h2>Learning objectives</h2>
-        <p class="cap">By the end of the course, students will be able to apply key probabilistic tools in both academic and professional contexts.</p>
+        <p class="cap">By the end of the course, students will be able to apply key probabilistic tools in both academic and professional contexts, reasoning under uncertainty and validating their conclusions.</p>
         <ul class="obj-list">
-          <li>Understand and apply fundamental concepts of probability, including random variables, distributions, independence, and conditional probability.</li>
-          <li>Analyze and model stochastic processes such as Markov chains and Poisson processes.</li>
-          <li>Construct and interpret Bayesian networks to model complex dependencies and support probabilistic inference.</li>
-          <li>Use probabilistic models to solve problems in computing science domains such as algorithms, machine learning, and artificial intelligence.</li>
+          <li>Understand and apply fundamental concepts of probability, including random variables, distributions, independence, and conditional probability — and recognise when each model is appropriate.</li>
+          <li>Analyze and model stochastic processes such as Markov chains and Poisson processes, computing steady-state behavior, absorption times and event rates.</li>
+          <li>Construct and interpret Bayesian networks to model complex dependencies and support probabilistic inference, reading independence directly off the graph.</li>
+          <li>Use probabilistic models to solve problems in computing science domains such as algorithms, machine learning, and artificial intelligence — from spam classification to reliability and queueing.</li>
         </ul>
       </section>
 
       <!-- (c) METHODOLOGY + ASSESSMENT ---------------------------------- -->
       <section class="demo" id="method">
         <h2>Methodology &amp; assessment</h2>
-        <p class="cap">IE's collaborative, active and applied teaching method — 75 estimated hours of student work — paired with continuous evaluation.</p>
+        <p class="cap">IE's collaborative, active and applied teaching method — 75 estimated hours of student work — paired with continuous evaluation across four components.</p>
         <div class="two-col">
           <div>
             <h3>Learning activities <span class="mono" style="color:var(--muted);font-weight:500">· 75.0 h total</span></h3>
@@ -216,55 +298,88 @@
                 <div class="bar-track"><div class="bar-fill" style="width:20%"></div></div>
               </div>
             </div>
-            <p class="note">
-              <strong style="color:var(--ink-soft)">AI policy:</strong> generative AI is encouraged for the group project to develop an
-              informed, critical perspective — but its use must be acknowledged, and outputs validated.
-              80% attendance is required; the June/July re-sit is a single comprehensive exam (max grade 8.0).
-            </p>
           </div>
         </div>
+
+        <h3 style="font-size:0.85rem;font-weight:700;margin:1.2rem 0 0;color:var(--ink)">Components — deliverable &amp; evaluation</h3>
+        <ul class="deliver">
+          <li><span class="dt">Final exam — 35%.</span> A comprehensive multiple-choice exam (session 15) covering all five modules. A minimum mark of <strong>3.5 / 10</strong> on the exam is required to pass the course; below it, the other components cannot compensate. Evaluates conceptual understanding and the ability to apply formulas correctly under time pressure.</li>
+          <li><span class="dt">Group work — 25%.</span> Submission of a small working <strong>prototype</strong> (typically a Bayesian network model) together with documentation explaining its construction, modelling choices and validation. Generative AI is encouraged here, provided its use is acknowledged and outputs are validated. Evaluates modelling skill, correctness and critical reasoning.</li>
+          <li><span class="dt">Group presentation — 20%.</span> Teams present their project to the class in a <strong>non-technical</strong> way (sessions 13–14), communicating the model and its conclusions to a general audience. Evaluates clarity, structure and the ability to translate technical work for stakeholders.</li>
+          <li><span class="dt">Class participation — 20%.</span> Active, well-behaved participation across the in-person sessions. Evaluates engagement, contribution to discussions and exercises, and professional conduct.</li>
+        </ul>
+
+        <p class="note">
+          <strong style="color:var(--ink-soft)">AI policy:</strong> generative AI is encouraged for the group project to build an
+          informed, critical perspective. Low-effort prompts give low-quality results; never take GenAI output at face value —
+          assume it is wrong unless you know the answer or can cross-check it, and you remain responsible for any errors. Its
+          use <em>must be acknowledged</em> (a suggested disclosure format is provided in the syllabus); acknowledging AI use does not affect your grade.
+        </p>
+        <p class="note">
+          <strong style="color:var(--ink-soft)">Attendance &amp; re-sit rules:</strong> the <strong>80% attendance</strong> rule is mandatory —
+          students who fail to meet it fail both the ordinary and the extraordinary (June/July) calls and must re-enrol the following year.
+          Students have four calls across two academic years. The June/July re-sit is a single <strong>comprehensive exam</strong>; the course
+          grade then depends on that exam only (continuous evaluation is disregarded), with a minimum passing grade of 5 and a
+          <strong>maximum grade of 8.0</strong> ("notable"). A grade review session is held after grading; attending it is a prerequisite for any appeal.
+        </p>
       </section>
 
       <!-- (d) FULL PROGRAM ---------------------------------------------- -->
       <section class="demo" id="program">
         <h2>Program — 15 sessions</h2>
-        <p class="cap">Every session is live and in-person. Reading tags link to the two recommended texts; demo tags jump to the matching interactive visualization.</p>
+        <p class="cap">Every session is live and in-person. Each topic carries a one-line explanation, the core formula or definition where technical, and a key idea or worked example. Reading tags link to the two recommended texts; demo tags jump to the matching interactive visualization.</p>
 
         <!-- MODULE 1 -->
         <div class="module">
           <div class="mod-head">Module I — Foundations <span class="mod-sub">discrete probability &amp; Bayes' theorem</span></div>
+          <div class="mod-intro">
+            <p>The course opens by refreshing the language of probability — sample spaces, events, random variables and distributions — and the single most important rule for reasoning from evidence: Bayes' theorem. The spam filter introduced here is the thread that runs through the whole course.</p>
+            <div class="oc-head">By the end of this module you can</div>
+            <ul class="outcomes">
+              <li>State the axioms of probability and compute with unions, intersections and complements.</li>
+              <li>Describe a discrete random variable through its probability mass function and recognise standard families.</li>
+              <li>Apply conditional probability, the law of total probability and Bayes' theorem to update beliefs from data.</li>
+              <li>Explain how a probabilistic spam filter turns word counts into a posterior probability of "spam".</li>
+            </ul>
+          </div>
           <ol class="timeline">
             <li>
               <span class="num">1</span>
               <div class="s-title">Introduction to the course</div>
               <p class="s-obj">Set expectations and motivate probability through a concrete computing application: the spam filter.</p>
               <ul class="topics">
-                <li>Overview of the course structure and expectations</li>
-                <li>Review of basic probability concepts</li>
-                <li>Discussion of spam filters</li>
-                <li>Implementing a simple spam filter</li>
+                <li><span class="tn">Course structure &amp; expectations</span> — the five modules, workload, assessment and the in-person, applied format.</li>
+                <li><span class="tn">Review of basic probability concepts</span> — sample space $\Omega$, events, and the axioms $P(\Omega)=1$, $0\le P(A)\le 1$, and additivity for disjoint events.</li>
+                <li><span class="tn">Discussion of spam filters</span> — how an email can be scored as "spam" or "ham" from the words it contains.</li>
+                <li><span class="tn">Implementing a simple spam filter</span> — estimating word probabilities from a labelled corpus and combining them.</li>
               </ul>
+              <div class="formula"><span class="flab">Core formula · complement &amp; union</span>$P(A^c)=1-P(A)$ and $P(A\cup B)=P(A)+P(B)-P(A\cap B)$.</div>
+              <div class="keyidea"><span class="klab">Key idea</span>A spam filter is just Bayes' theorem in disguise: each word shifts the probability that a message is spam up or down, and the words are combined to produce a final score.</div>
               <div class="tags">
                 <span class="tag read">Ross ch. 1</span>
                 <span class="tag"><a href="./index.html#prob">demo · probability (Venn)</a></span>
                 <span class="tag"><a href="./index.html#bayes">demo · Bayes / base-rate</a></span>
               </div>
+              <p class="read-note"><span class="rn">Reading:</span> Ross ch. 1 — sample spaces, axioms and basic counting; the foundation for everything that follows.</p>
             </li>
             <li>
               <span class="num">2</span>
               <div class="s-title">Review of discrete probability</div>
               <p class="s-obj">Consolidate the discrete toolkit — distributions, conditioning and the rule that powers inference.</p>
               <ul class="topics">
-                <li>Fundamental principles of discrete probability</li>
-                <li>Probability mass functions and distributions</li>
-                <li>Conditional probability and independence</li>
-                <li>Bayes theorem</li>
+                <li><span class="tn">Fundamental principles of discrete probability</span> — outcomes, events and counting on finite or countable sample spaces.</li>
+                <li><span class="tn">Probability mass functions &amp; distributions</span> — a pmf assigns $p(x)=P(X=x)$ with $\sum_x p(x)=1$; key families are Bernoulli, Binomial, Geometric and Poisson.</li>
+                <li><span class="tn">Conditional probability &amp; independence</span> — $P(A\mid B)=P(A\cap B)/P(B)$; events are independent when $P(A\cap B)=P(A)P(B)$.</li>
+                <li><span class="tn">Bayes' theorem</span> — invert a conditional to update a prior into a posterior.</li>
               </ul>
+              <div class="formula"><span class="flab">Core formula · Bayes' theorem</span>$P(H\mid E)=\dfrac{P(E\mid H)\,P(H)}{P(E)}$, with $P(E)=\sum_i P(E\mid H_i)P(H_i)$ by the law of total probability.</div>
+              <div class="keyidea"><span class="klab">Worked example</span>A test is 99% accurate for a disease affecting 1 in 1000. A positive result gives $P(\text{sick}\mid +)=\dfrac{0.99\cdot 0.001}{0.99\cdot 0.001+0.01\cdot 0.999}\approx 0.09$ — only ~9%, because the base rate is tiny.</div>
               <div class="tags">
                 <span class="tag read">Ross ch. 1–2</span>
                 <span class="tag"><a href="./index.html#disc">demo · discrete distributions</a></span>
                 <span class="tag"><a href="./index.html#prob">demo · conditional probability</a></span>
               </div>
+              <p class="read-note"><span class="rn">Reading:</span> Ross ch. 1–2 — conditional probability, independence and discrete random variables with their expectations.</p>
             </li>
           </ol>
         </div>
@@ -272,77 +387,102 @@
         <!-- MODULE 2 -->
         <div class="module">
           <div class="mod-head">Module II — Bayesian networks <span class="mod-sub">structure, independence &amp; inference</span></div>
+          <div class="mod-intro">
+            <p>A Bayesian network represents a high-dimensional joint distribution as a directed acyclic graph plus a conditional probability table at each node. The module develops how to read independence off the graph (conditional independence and d-separation), how to compute posteriors (exact and by sampling), and the Naive Bayes special case used for classification.</p>
+            <div class="oc-head">By the end of this module you can</div>
+            <ul class="outcomes">
+              <li>Build a Bayesian network from a problem description and specify its CPTs.</li>
+              <li>Determine whether two variables are conditionally independent using d-separation.</li>
+              <li>Distinguish exact from approximate (sampling-based) inference and choose appropriately.</li>
+              <li>Train and apply a Naive Bayes classifier and explain its independence assumption.</li>
+            </ul>
+          </div>
           <ol class="timeline">
             <li>
               <span class="num">3</span>
               <div class="s-title">Introduction to Bayesian networks</div>
               <p class="s-obj">Represent joint distributions compactly as a directed graph plus conditional probability tables.</p>
               <ul class="topics">
-                <li>Basic concepts of Bayesian networks</li>
-                <li>Structure and graphical representation</li>
-                <li>Conditional probability tables (CPTs)</li>
-                <li>Simple examples of Bayesian networks</li>
+                <li><span class="tn">Basic concepts</span> — nodes are random variables, directed edges encode direct probabilistic dependence.</li>
+                <li><span class="tn">Structure &amp; graphical representation</span> — a directed acyclic graph (DAG) whose edges run from parents to children.</li>
+                <li><span class="tn">Conditional probability tables (CPTs)</span> — each node stores $P(X\mid \text{parents}(X))$.</li>
+                <li><span class="tn">Simple examples</span> — small networks such as the classic "sprinkler / rain / wet grass" model.</li>
               </ul>
+              <div class="formula"><span class="flab">Core formula · chain rule for a DAG</span>$P(X_1,\dots,X_n)=\prod_{i=1}^{n} P\!\left(X_i \mid \text{parents}(X_i)\right)$ — the factorization that makes networks compact.</div>
+              <div class="keyidea"><span class="klab">Key idea</span>A full joint over $n$ binary variables needs $2^n-1$ numbers; if each node has at most $k$ parents the network needs only $O(n\,2^k)$ — an exponential saving.</div>
               <div class="tags">
                 <span class="tag read">Koller &amp; Friedman ch. 3</span>
                 <span class="tag"><a href="./index.html#bayes">demo · Bayes</a></span>
               </div>
+              <p class="read-note"><span class="rn">Reading:</span> Koller &amp; Friedman ch. 3 — the Bayesian network representation and its independence semantics.</p>
             </li>
             <li>
               <span class="num">4</span>
               <div class="s-title">Conditional independence</div>
               <p class="s-obj">Read independence relations directly off the structure of a network.</p>
               <ul class="topics">
-                <li>Definition and importance of conditional independence</li>
-                <li>Identifying conditional independence in Bayesian networks</li>
-                <li>Practical examples and exercises</li>
+                <li><span class="tn">Definition &amp; importance</span> — $X \perp Y \mid Z$ means knowing $Z$ makes $X$ uninformative about $Y$.</li>
+                <li><span class="tn">Identifying it in networks</span> — local Markov property: a node is independent of its non-descendants given its parents.</li>
+                <li><span class="tn">Practical examples &amp; exercises</span> — using independence to simplify and to justify a network's factorization.</li>
               </ul>
+              <div class="formula"><span class="flab">Definition · conditional independence</span>$X \perp Y \mid Z \iff P(X,Y\mid Z)=P(X\mid Z)\,P(Y\mid Z)$, equivalently $P(X\mid Y,Z)=P(X\mid Z)$.</div>
+              <div class="keyidea"><span class="klab">Key idea</span>Conditional independence is what gives the chain rule its savings: every missing edge in the DAG asserts an independence that removes parameters from the model.</div>
               <div class="tags">
                 <span class="tag read">Koller &amp; Friedman ch. 3</span>
               </div>
+              <p class="read-note"><span class="rn">Reading:</span> Koller &amp; Friedman ch. 3 — conditional independence and the local/global Markov properties.</p>
             </li>
             <li>
               <span class="num">5</span>
               <div class="s-title">D-separation</div>
               <p class="s-obj">Apply the graphical d-separation criterion to decide which variables are independent given evidence.</p>
               <ul class="topics">
-                <li>Concept of d-separation in Bayesian networks</li>
-                <li>Rules for determining d-separation</li>
-                <li>Using d-separation to infer independence</li>
-                <li>Examples and hands-on practice with Bayesian networks</li>
+                <li><span class="tn">Concept of d-separation</span> — a purely graphical test for conditional independence in a DAG.</li>
+                <li><span class="tn">Rules for determining it</span> — examine every path through the three connection types: chain, fork and collider (v-structure).</li>
+                <li><span class="tn">Using it to infer independence</span> — if every path between $X$ and $Y$ is blocked given $Z$, then $X \perp Y \mid Z$.</li>
+                <li><span class="tn">Hands-on practice</span> — tracing paths and deciding blocking on worked networks.</li>
               </ul>
+              <div class="formula"><span class="flab">Rule · collider (v-structure)</span>A chain $A\to B\to C$ or fork $A\leftarrow B\to C$ is blocked when $B$ is observed; a collider $A\to B\leftarrow C$ is blocked unless $B$ <em>or a descendant</em> is observed.</div>
+              <div class="keyidea"><span class="klab">Key idea</span>"Explaining away": at a collider, observing the common effect makes its two causes dependent — conditioning can <em>create</em> dependence, not only remove it.</div>
               <div class="tags">
                 <span class="tag read">Koller &amp; Friedman ch. 3</span>
               </div>
+              <p class="read-note"><span class="rn">Reading:</span> Koller &amp; Friedman ch. 3 — d-separation and its soundness/completeness for reading independence.</p>
             </li>
             <li>
               <span class="num">6</span>
               <div class="s-title">Inference and sampling</div>
               <p class="s-obj">Compute posteriors exactly where feasible, and approximate them by sampling when it is not.</p>
               <ul class="topics">
-                <li>Methods of probabilistic inference</li>
-                <li>Exact inference vs. approximate inference</li>
-                <li>Introduction to sampling methods</li>
+                <li><span class="tn">Methods of probabilistic inference</span> — computing $P(\text{query}\mid \text{evidence})$ from the network.</li>
+                <li><span class="tn">Exact vs. approximate inference</span> — variable elimination is exact but can be intractable; sampling trades exactness for scalability.</li>
+                <li><span class="tn">Introduction to sampling</span> — forward sampling, rejection sampling and Monte Carlo estimation of probabilities.</li>
               </ul>
+              <div class="formula"><span class="flab">Core formula · Monte Carlo estimate</span>$P(A)\approx \dfrac{1}{N}\sum_{i=1}^{N}\mathbf{1}[A \text{ in sample } i]$, with error shrinking like $1/\sqrt{N}$.</div>
+              <div class="keyidea"><span class="klab">Key idea</span>Exact inference in general networks is NP-hard, so for large models we estimate posteriors by drawing many samples and counting — the same Monte Carlo principle behind the CLT demo.</div>
               <div class="tags">
                 <span class="tag read">Koller &amp; Friedman ch. 9–12</span>
                 <span class="tag"><a href="./index.html#mc">demo · Monte Carlo</a></span>
                 <span class="tag"><a href="./index.html#clt">demo · CLT (sampling)</a></span>
               </div>
+              <p class="read-note"><span class="rn">Reading:</span> Koller &amp; Friedman ch. 9–12 — exact inference (variable elimination) and approximate, sampling-based inference.</p>
             </li>
             <li>
               <span class="num">7</span>
               <div class="s-title">Naive Bayes model</div>
               <p class="s-obj">Specialize Bayesian reasoning into a fast, surprisingly effective classifier.</p>
               <ul class="topics">
-                <li>Structure and assumptions of the Naive Bayes model</li>
-                <li>Training and testing a Naive Bayes classifier</li>
-                <li>Applications in image classification and spam filtering</li>
+                <li><span class="tn">Structure &amp; assumptions</span> — one class node as the parent of all features, which are assumed conditionally independent given the class.</li>
+                <li><span class="tn">Training &amp; testing</span> — estimate class priors and per-feature likelihoods by counting; predict the class with the highest posterior.</li>
+                <li><span class="tn">Applications</span> — image classification and spam filtering (closing the loop with session 1).</li>
               </ul>
+              <div class="formula"><span class="flab">Core formula · Naive Bayes classifier</span>$\hat{y}=\arg\max_{c}\; P(c)\prod_{j} P(x_j\mid c)$ — the "naive" product follows from conditional independence of features.</div>
+              <div class="keyidea"><span class="klab">Key idea</span>The independence assumption is usually false, yet Naive Bayes often classifies well because it only needs the <em>ranking</em> of class scores to be right, not their exact probabilities.</div>
               <div class="tags">
                 <span class="tag read">Koller &amp; Friedman ch. 17</span>
                 <span class="tag"><a href="./index.html#bayes">demo · Bayes</a></span>
               </div>
+              <p class="read-note"><span class="rn">Reading:</span> Koller &amp; Friedman ch. 17 — learning parameters from data and the Naive Bayes classifier.</p>
             </li>
           </ol>
         </div>
@@ -350,35 +490,51 @@
         <!-- MODULE 3 -->
         <div class="module">
           <div class="mod-head">Module III — Stochastic processes <span class="mod-sub">Markov chains</span></div>
+          <div class="mod-intro">
+            <p>A Markov chain models a system that moves between states over time, where the next state depends only on the current one. The module covers transition matrices, long-run (steady-state) behavior, and absorbing chains with their expected time to absorption — tools behind PageRank, randomized algorithms and reliability models.</p>
+            <div class="oc-head">By the end of this module you can</div>
+            <ul class="outcomes">
+              <li>Encode a process as a transition matrix and draw its state diagram.</li>
+              <li>Solve for the stationary distribution of an irreducible, aperiodic chain.</li>
+              <li>Identify absorbing states and compute expected time to absorption.</li>
+              <li>Recognise Markov models in computing applications such as web ranking and queueing.</li>
+            </ul>
+          </div>
           <ol class="timeline">
             <li>
               <span class="num">8</span>
               <div class="s-title">Markov chains — Part I</div>
               <p class="s-obj">Model memoryless dynamics with transition matrices and find their long-run behavior.</p>
               <ul class="topics">
-                <li>Definition and properties of Markov chains</li>
-                <li>Transition matrices and state diagrams</li>
-                <li>Examples of Markov chains in computing</li>
-                <li>Solving for steady-state probabilities</li>
+                <li><span class="tn">Definition &amp; properties</span> — the Markov property: the future depends on the present, not the past.</li>
+                <li><span class="tn">Transition matrices &amp; state diagrams</span> — $P_{ij}=P(X_{t+1}=j\mid X_t=i)$, with each row summing to 1.</li>
+                <li><span class="tn">Examples in computing</span> — PageRank, randomized algorithms, text generation, weather/queue models.</li>
+                <li><span class="tn">Steady-state probabilities</span> — the distribution the chain settles into over time.</li>
               </ul>
+              <div class="formula"><span class="flab">Core formula · Markov property &amp; stationarity</span>$P(X_{t+1}=j\mid X_t=i,\dots,X_0)=P_{ij}$; the stationary $\boldsymbol{\pi}$ solves $\boldsymbol{\pi}P=\boldsymbol{\pi}$ with $\sum_i \pi_i = 1$.</div>
+              <div class="keyidea"><span class="klab">Key idea</span>Multiplying a state distribution by $P$ advances it one step; raising $P$ to higher powers ($P^n$) gives $n$-step transition probabilities, which converge to $\boldsymbol{\pi}$ for a "nice" (irreducible, aperiodic) chain.</div>
               <div class="tags">
                 <span class="tag read">Ross ch. 4</span>
                 <span class="tag"><a href="./index.html#rw">demo · random walks</a></span>
               </div>
+              <p class="read-note"><span class="rn">Reading:</span> Ross ch. 4 — Markov chains, Chapman–Kolmogorov equations and limiting probabilities.</p>
             </li>
             <li>
               <span class="num">9</span>
               <div class="s-title">Markov chains — Part II</div>
               <p class="s-obj">Tackle absorbing chains and the expected time until the process is trapped.</p>
               <ul class="topics">
-                <li>Advanced topics in Markov chains</li>
-                <li>Absorbing states and expected time to absorption</li>
-                <li>Hands-on exercises with Markov chain models</li>
+                <li><span class="tn">Advanced topics</span> — classification of states (recurrent, transient), periodicity and reducibility.</li>
+                <li><span class="tn">Absorbing states &amp; time to absorption</span> — once entered, an absorbing state is never left; compute the expected steps to reach one.</li>
+                <li><span class="tn">Hands-on exercises</span> — solving real chain models, e.g. gambler's ruin and random walks.</li>
               </ul>
+              <div class="formula"><span class="flab">Core formula · expected absorption time</span>With transient-block $Q$, the fundamental matrix is $N=(I-Q)^{-1}$; expected steps to absorption from each transient state is $\mathbf{t}=N\mathbf{1}$.</div>
+              <div class="keyidea"><span class="klab">Worked example</span>In gambler's ruin on $\{0,\dots,N\}$ with states $0$ and $N$ absorbing, $N=(I-Q)^{-1}$ gives both the expected number of bets and the probability of ending broke versus rich.</div>
               <div class="tags">
                 <span class="tag read">Ross ch. 4</span>
                 <span class="tag"><a href="./index.html#rw">demo · random walks</a></span>
               </div>
+              <p class="read-note"><span class="rn">Reading:</span> Ross ch. 4 — absorbing chains, mean time in transient states and absorption probabilities.</p>
             </li>
           </ol>
         </div>
@@ -386,49 +542,69 @@
         <!-- MODULE 4 -->
         <div class="module">
           <div class="mod-head">Module IV — Continuous models <span class="mod-sub">exponential, Poisson &amp; queues</span></div>
+          <div class="mod-intro">
+            <p>The course moves from discrete masses to continuous densities, centred on the memoryless exponential distribution and the Poisson process that counts events in continuous time. These combine into queueing theory — the M/M/1 model — used to size servers, networks and service systems.</p>
+            <div class="oc-head">By the end of this module you can</div>
+            <ul class="outcomes">
+              <li>Work with probability density functions and compute probabilities by integration.</li>
+              <li>Use the exponential distribution and its memoryless property in reliability and timing problems.</li>
+              <li>Model event counts with the Poisson process and link inter-arrival times to the exponential.</li>
+              <li>Analyse an M/M/1 queue and compute its key performance metrics.</li>
+            </ul>
+          </div>
           <ol class="timeline">
             <li>
               <span class="num">10</span>
               <div class="s-title">Continuous random variables &amp; the exponential distribution</div>
               <p class="s-obj">Move from masses to densities and meet the memoryless exponential distribution.</p>
               <ul class="topics">
-                <li>Introduction to continuous random variables</li>
-                <li>Probability density functions (PDFs)</li>
-                <li>Properties of the exponential distribution</li>
-                <li>Applications in reliability and network modeling</li>
+                <li><span class="tn">Continuous random variables</span> — outcomes on a continuum, where single points have probability zero.</li>
+                <li><span class="tn">Probability density functions (PDFs)</span> — $P(a\le X\le b)=\int_a^b f(x)\,dx$ with $\int_{-\infty}^{\infty} f = 1$.</li>
+                <li><span class="tn">Properties of the exponential distribution</span> — models waiting times; its rate $\lambda$ sets the mean $1/\lambda$.</li>
+                <li><span class="tn">Applications</span> — component lifetimes in reliability and inter-arrival times in network modelling.</li>
               </ul>
+              <div class="formula"><span class="flab">Core formula · exponential distribution</span>$f(x)=\lambda e^{-\lambda x}$ for $x\ge 0$; $E[X]=1/\lambda$; memoryless: $P(X>s+t\mid X>s)=P(X>t)$.</div>
+              <div class="keyidea"><span class="klab">Key idea</span>Memorylessness means a used component is "as good as new": the time already waited tells you nothing about the time remaining — the defining property of the exponential.</div>
               <div class="tags">
                 <span class="tag read">Ross ch. 5</span>
                 <span class="tag"><a href="./index.html#cont">demo · continuous distributions</a></span>
               </div>
+              <p class="read-note"><span class="rn">Reading:</span> Ross ch. 5 — continuous random variables, densities, and the exponential distribution.</p>
             </li>
             <li>
               <span class="num">11</span>
               <div class="s-title">The Poisson process</div>
               <p class="s-obj">Count events in time and connect the Poisson and exponential distributions.</p>
               <ul class="topics">
-                <li>Definition and characteristics of the Poisson process</li>
-                <li>Relationship between the Poisson and exponential distributions</li>
-                <li>Hands-on problems involving Poisson processes</li>
+                <li><span class="tn">Definition &amp; characteristics</span> — a counting process with independent, stationary increments at rate $\lambda$.</li>
+                <li><span class="tn">Poisson ↔ exponential</span> — the number of events in any interval is Poisson; the gaps between events are exponential.</li>
+                <li><span class="tn">Hands-on problems</span> — modelling arrivals, requests and failures over time.</li>
               </ul>
+              <div class="formula"><span class="flab">Core formula · Poisson counts</span>$P(N(t)=k)=\dfrac{(\lambda t)^k e^{-\lambda t}}{k!}$, so $E[N(t)]=\lambda t$; inter-arrival times are $\text{Exponential}(\lambda)$.</div>
+              <div class="keyidea"><span class="klab">Key idea</span>One rate $\lambda$ describes two views of the same process: <em>how many</em> events occur (Poisson) and <em>how long</em> between them (exponential).</div>
               <div class="tags">
                 <span class="tag read">Ross ch. 5</span>
                 <span class="tag"><a href="./index.html#disc">demo · Poisson (discrete)</a></span>
                 <span class="tag"><a href="./index.html#cont">demo · exponential</a></span>
               </div>
+              <p class="read-note"><span class="rn">Reading:</span> Ross ch. 5 — the Poisson process, inter-arrival and waiting times.</p>
             </li>
             <li>
               <span class="num">12</span>
               <div class="s-title">Queuing theory</div>
               <p class="s-obj">Combine arrivals and service into the canonical M/M/1 queue and read off its performance.</p>
               <ul class="topics">
-                <li>Basic concepts and definitions in queuing theory</li>
-                <li>The M/M/1 queuing model</li>
-                <li>Performance metrics: waiting time, queue length, etc.</li>
+                <li><span class="tn">Basic concepts</span> — arrival rate $\lambda$, service rate $\mu$ and utilization $\rho=\lambda/\mu$.</li>
+                <li><span class="tn">The M/M/1 model</span> — Poisson arrivals, exponential service, a single server and an infinite queue.</li>
+                <li><span class="tn">Performance metrics</span> — mean queue length, waiting time and time in system; analysed via Little's law.</li>
               </ul>
+              <div class="formula"><span class="flab">Core formula · M/M/1 (stable when $\rho&lt;1$)</span>Mean number in system $L=\dfrac{\rho}{1-\rho}$; mean time in system $W=\dfrac{1}{\mu-\lambda}$; Little's law $L=\lambda W$.</div>
+              <div class="keyidea"><span class="klab">Key idea</span>As utilization $\rho\to 1$ the queue blows up: waiting time grows without bound, which is why systems are sized to keep $\rho$ comfortably below 1.</div>
               <div class="tags">
                 <span class="tag read">Ross ch. 8</span>
+                <span class="tag"><a href="./index.html#cont">demo · exponential (service)</a></span>
               </div>
+              <p class="read-note"><span class="rn">Reading:</span> Ross ch. 8 — queueing theory, the M/M/1 model and Little's law.</p>
             </li>
           </ol>
         </div>
@@ -436,15 +612,25 @@
         <!-- MODULE 5 -->
         <div class="module">
           <div class="mod-head">Module V — Projects &amp; assessment <span class="mod-sub">presentations, review &amp; final exam</span></div>
+          <div class="mod-intro">
+            <p>The final module brings the course together: teams present their Bayesian-network projects to a non-technical audience, the class reviews past exams and open questions, and the program closes with a comprehensive multiple-choice exam.</p>
+            <div class="oc-head">By the end of this module you can</div>
+            <ul class="outcomes">
+              <li>Communicate a probabilistic model and its conclusions clearly to a general audience.</li>
+              <li>Integrate concepts across all five modules and self-assess against past exam questions.</li>
+              <li>Demonstrate mastery of the full syllabus under exam conditions.</li>
+            </ul>
+          </div>
           <ol class="timeline">
             <li>
               <span class="num">13</span>
               <div class="s-title">Group presentations and review</div>
               <p class="s-obj">Present the group Bayesian-network projects and consolidate for the exam.</p>
               <ul class="topics">
-                <li>Groups present their Bayesian network projects</li>
-                <li>Discussion of past exams and final questions</li>
+                <li><span class="tn">Project presentations</span> — groups present their Bayesian network projects in a non-technical way.</li>
+                <li><span class="tn">Exam review</span> — discussion of past exams and final questions across all modules.</li>
               </ul>
+              <div class="keyidea"><span class="klab">Key idea</span>Communicating uncertainty clearly to a non-technical audience is a skill in itself — the presentation is graded on clarity, not on mathematical depth.</div>
               <div class="tags">
                 <span class="tag"><a href="./index.html#bayes">demo · Bayes</a></span>
               </div>
@@ -454,8 +640,8 @@
               <div class="s-title">Group presentations and review</div>
               <p class="s-obj">Continue project presentations and final exam preparation.</p>
               <ul class="topics">
-                <li>Groups present their Bayesian network projects</li>
-                <li>Discussion of past exams and final questions</li>
+                <li><span class="tn">Project presentations</span> — remaining groups present their Bayesian network projects.</li>
+                <li><span class="tn">Exam review</span> — continued discussion of past exams and final questions.</li>
               </ul>
               <div class="tags">
                 <span class="tag"><a href="./index.html#bayes">demo · Bayes</a></span>
@@ -466,28 +652,67 @@
               <div class="s-title">Final exam</div>
               <p class="s-obj">Comprehensive multiple-choice exam covering the full program (35% of the grade, 3.5 to pass).</p>
               <ul class="topics">
-                <li>Multiple-choice questions across all modules</li>
+                <li><span class="tn">Multiple-choice questions</span> across all five modules — discrete probability and Bayes, Bayesian networks, Markov chains, continuous models and queueing.</li>
               </ul>
+              <div class="keyidea"><span class="klab">Note</span>A minimum mark of 3.5 / 10 on this exam is required to pass the course; the other components cannot compensate below that threshold.</div>
             </li>
           </ol>
         </div>
       </section>
 
+      <!-- (e) KEY CONCEPTS / GLOSSARY ----------------------------------- -->
+      <section class="demo" id="glossary">
+        <h2>Key concepts</h2>
+        <p class="cap">A quick-reference glossary of the terms that recur across the program. Each is defined in one or two sentences.</p>
+        <ul class="glossary">
+          <li><span class="term">Sample space ($\Omega$).</span> The set of all possible outcomes of a random experiment; events are subsets of it.</li>
+          <li><span class="term">Random variable.</span> A function mapping outcomes to numbers; discrete ones take countable values, continuous ones take values on a continuum.</li>
+          <li><span class="term">Probability mass function (pmf).</span> For a discrete variable, $p(x)=P(X=x)$ with $\sum_x p(x)=1$.</li>
+          <li><span class="term">Probability density function (pdf).</span> For a continuous variable, $f(x)\ge 0$ with $\int f=1$; probabilities are areas under $f$.</li>
+          <li><span class="term">Conditional probability.</span> $P(A\mid B)=P(A\cap B)/P(B)$ — the probability of $A$ once $B$ is known.</li>
+          <li><span class="term">Independence.</span> Events with $P(A\cap B)=P(A)P(B)$; knowing one says nothing about the other.</li>
+          <li><span class="term">Conditional independence.</span> $X\perp Y\mid Z$: $X$ and $Y$ are independent once $Z$ is known.</li>
+          <li><span class="term">Bayes' theorem.</span> $P(H\mid E)=P(E\mid H)P(H)/P(E)$ — updates a prior into a posterior using evidence.</li>
+          <li><span class="term">Prior / posterior.</span> Belief about a hypothesis before / after seeing evidence.</li>
+          <li><span class="term">Law of total probability.</span> $P(E)=\sum_i P(E\mid H_i)P(H_i)$ over a partition $\{H_i\}$.</li>
+          <li><span class="term">Bayesian network.</span> A DAG plus CPTs that factorizes a joint distribution via the chain rule.</li>
+          <li><span class="term">Conditional probability table (CPT).</span> The table $P(X\mid \text{parents}(X))$ stored at each node.</li>
+          <li><span class="term">D-separation.</span> A graphical criterion that decides conditional independence by checking whether paths are blocked.</li>
+          <li><span class="term">Collider / v-structure.</span> A node with two incoming edges ($A\to B\leftarrow C$); conditioning on it can create dependence ("explaining away").</li>
+          <li><span class="term">Exact vs. approximate inference.</span> Computing posteriors precisely (e.g. variable elimination) versus estimating them by sampling.</li>
+          <li><span class="term">Monte Carlo.</span> Estimating a quantity by averaging over many random samples; error shrinks like $1/\sqrt{N}$.</li>
+          <li><span class="term">Naive Bayes.</span> A classifier assuming features are conditionally independent given the class: $\hat y=\arg\max_c P(c)\prod_j P(x_j\mid c)$.</li>
+          <li><span class="term">Markov property.</span> The next state depends only on the current state, not the full history.</li>
+          <li><span class="term">Transition matrix.</span> $P_{ij}=P(X_{t+1}=j\mid X_t=i)$; each row sums to 1.</li>
+          <li><span class="term">Stationary distribution.</span> A distribution $\boldsymbol{\pi}$ with $\boldsymbol{\pi}P=\boldsymbol{\pi}$ — the chain's long-run behavior.</li>
+          <li><span class="term">Absorbing state.</span> A state that, once entered, is never left; used to compute time-to-absorption.</li>
+          <li><span class="term">Exponential distribution.</span> $f(x)=\lambda e^{-\lambda x}$; the memoryless model of waiting times, mean $1/\lambda$.</li>
+          <li><span class="term">Poisson process.</span> Events occurring at constant rate $\lambda$; counts are Poisson, gaps are exponential.</li>
+          <li><span class="term">M/M/1 queue.</span> A single-server queue with Poisson arrivals and exponential service; stable when $\rho=\lambda/\mu&lt;1$.</li>
+          <li><span class="term">Little's law.</span> $L=\lambda W$ — average number in a system equals arrival rate times average time spent.</li>
+          <li><span class="term">Central limit theorem (CLT).</span> Sums/averages of many independent variables are approximately normal, regardless of the original distribution.</li>
+        </ul>
+      </section>
+
       <!-- BIBLIOGRAPHY -------------------------------------------------- -->
       <section class="demo" id="biblio">
         <h2>Bibliography</h2>
-        <p class="cap">Recommended texts. Reading tags throughout the program point back to these.</p>
+        <p class="cap">Recommended texts, annotated with the sessions they support. Reading tags throughout the program point back to these.</p>
         <ul class="biblio">
           <li>
-            Daphne Koller and Nir Friedman. <span class="bk">Probabilistic Graphical Models: Principles and Techniques.</span>
+            Daphne Koller and Nir Friedman. <span class="bk">Probabilistic Graphical Models: Principles and Techniques.</span> MIT Press.
             <span class="isbn">ISBN 9780262013192 (Digital)</span>
+            The definitive reference on Bayesian networks: representation, independence, exact and approximate inference, and learning. The primary text for Module II.
+            <span class="uses"><span class="us">Used in:</span> sessions 3–7 (introduction, conditional independence, d-separation, inference &amp; sampling, Naive Bayes).</span>
           </li>
           <li>
-            Sheldon Ross. <span class="bk">Introduction to Probability Models.</span>
+            Sheldon Ross. <span class="bk">Introduction to Probability Models.</span> Academic Press.
             <span class="isbn">ISBN 9780128143476 (Digital)</span>
+            A classic, application-oriented introduction covering discrete and continuous probability, Markov chains, the Poisson process and queueing. The primary text for Modules I, III and IV.
+            <span class="uses"><span class="us">Used in:</span> sessions 1–2 (discrete probability &amp; Bayes), 8–9 (Markov chains, ch. 4), 10–11 (continuous &amp; Poisson, ch. 5), 12 (queueing, ch. 8).</span>
           </li>
         </ul>
-        <p class="note">Reading-chapter mappings above are indicative, aligning each session's topics to the relevant chapters of the recommended texts.</p>
+        <p class="note">Reading-chapter mappings throughout the program are indicative, aligning each session's topics to the relevant chapters of the recommended texts. Both texts are available in digital form through the IE library.</p>
       </section>
     </main>
 
