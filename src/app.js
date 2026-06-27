@@ -11,57 +11,24 @@
 // rapid slider input can never compound state.
 // ============================================================
 
-const TAU = Math.PI * 2;
+// The numeric and statistics cores live in framework-free ES modules under
+// ./stats/ and are unit-tested with node:test. This file is the DOM/canvas
+// layer: it reads sliders, calls the cores, and renders.
+import { TAU, safe, clamp } from './stats/numeric.js';
+import {
+  normalPdf as npdf, normalCdf as ncdf, zstar,
+  binomialPmf, geometricPmf, negBinomialPmf, poissonPmf,
+  continuousPdf, continuousMoments, tPdf, tCdf,
+} from './stats/distributions.js';
+import { gauss, expRV, unitSamplers } from './stats/random.js';
+import { leastSquares } from './stats/regression.js';
+import { confidenceInterval, covers, zTest, bayesDiagnostic } from './stats/inference.js';
 
-// ---------- numeric helpers ----------------------------------------------
-const safe = (x, d = 0) => Number.isFinite(x) ? x : d;
-const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
+// ---------- DOM helper ---------------------------------------------------
 function n(id, fallback) {
   const el = document.getElementById(id);
   const v = el ? +el.value : NaN;
   return Number.isFinite(v) ? v : fallback;
-}
-function gauss(mu = 0, sd = 1) {
-  const u = Math.max(1e-12, Math.random()), v = Math.random();
-  return mu + sd * Math.sqrt(-2 * Math.log(u)) * Math.cos(TAU * v);
-}
-function expRV(lam) { return -Math.log(Math.max(1e-12, Math.random())) / lam; }
-function logGamma(z) {
-  if (z < 0.5) return Math.log(Math.PI / Math.sin(Math.PI * z)) - logGamma(1 - z);
-  const g = 7;
-  const c = [0.99999999999980993, 676.5203681218851, -1259.1392167224028,
-             771.32342877765313, -176.61502916214059, 12.507343278686905,
-             -0.13857109526572012, 9.9843695780195716e-6, 1.5056327351493116e-7];
-  z -= 1;
-  let x = c[0];
-  for (let i = 1; i < g + 2; i++) x += c[i] / (z + i);
-  const t = z + g + 0.5;
-  return 0.5 * Math.log(TAU) + (z + 0.5) * Math.log(t) - t + Math.log(x);
-}
-function logBin(nn, k) { return logGamma(nn + 1) - logGamma(k + 1) - logGamma(nn - k + 1); }
-function erf(x) {
-  const s = Math.sign(x); x = Math.abs(x);
-  const a1=0.254829592,a2=-0.284496736,a3=1.421413741,a4=-1.453152027,a5=1.061405429,p=0.3275911;
-  const t = 1 / (1 + p * x);
-  const y = 1 - (((((a5*t + a4)*t) + a3)*t + a2)*t + a1)*t * Math.exp(-x*x);
-  return s * y;
-}
-function ncdf(z)         { return 0.5 * (1 + erf(z / Math.SQRT2)); }
-function npdf(x, mu, sd) {
-  const z = safe((x - mu) / sd, 0);
-  return Math.exp(-0.5 * z * z) / (sd * Math.sqrt(TAU));
-}
-// Inverse normal via Newton step (good for level ∈ [0.5, 0.99])
-function zstar(level) {
-  const target = (1 + clamp(level, 0.5, 0.999)) / 2;
-  let z = 1.96;
-  for (let i = 0; i < 40; i++) {
-    const f = ncdf(z) - target;
-    const df = npdf(z, 0, 1);
-    if (!df) break;
-    z -= f / df;
-  }
-  return z;
 }
 
 // ---------- canvas helpers -----------------------------------------------
@@ -249,32 +216,23 @@ mount('disc', () => {
     } else if (fam === 'binomial') {
       const nn = Math.max(1, Math.round(p1v));
       const p  = clamp(p2v, 1e-6, 1 - 1e-6);
-      for (let k = 0; k <= nn; k++) {
-        const lp = logBin(nn, k) + k * Math.log(p) + (nn - k) * Math.log(1 - p);
-        push(k, safe(Math.exp(lp), 0));
-      }
+      for (let k = 0; k <= nn; k++) push(k, binomialPmf(k, nn, p));
       mu = nn * p; vr = nn * p * (1 - p);
     } else if (fam === 'geometric') {
       const p = clamp(p2v, 1e-6, 1 - 1e-6);
       const k_max = Math.min(50, Math.ceil(5 / p));
-      for (let k = 1; k <= k_max; k++) push(k, p * Math.pow(1 - p, k - 1));
+      for (let k = 1; k <= k_max; k++) push(k, geometricPmf(k, p));
       mu = 1 / p; vr = (1 - p) / (p * p);
     } else if (fam === 'negbin') {
       const r = Math.max(1, Math.round(p1v));
       const p = clamp(p2v, 1e-6, 1 - 1e-6);
       const k_max = Math.min(80, Math.ceil((r * (1 - p)) / p * 4 + 10));
-      for (let k = 0; k <= k_max; k++) {
-        const lp = logGamma(k + r) - logGamma(k + 1) - logGamma(r) + r * Math.log(p) + k * Math.log(1 - p);
-        push(k, safe(Math.exp(lp), 0));
-      }
+      for (let k = 0; k <= k_max; k++) push(k, negBinomialPmf(k, r, p));
       mu = r * (1 - p) / p; vr = r * (1 - p) / (p * p);
     } else if (fam === 'poisson') {
       const lam = Math.max(0.01, p1v);
       const k_max = Math.max(20, Math.ceil(lam + 4 * Math.sqrt(lam)));
-      for (let k = 0; k <= k_max; k++) {
-        const lp = -lam + k * Math.log(lam) - logGamma(k + 1);
-        push(k, safe(Math.exp(lp), 0));
-      }
+      for (let k = 0; k <= k_max; k++) push(k, poissonPmf(k, lam));
       mu = lam; vr = lam;
     }
     return { xs, ys, mu, vr, mode };
@@ -368,40 +326,8 @@ mount('cont', () => {
     if (fam === 'beta')        return [0, 1];
     if (fam === 'chi2')        return [0, a + 4 * Math.sqrt(2 * a)];
   }
-  function pdf(fam, x, a, b) {
-    if (fam === 'uniform') {
-      const lo = Math.min(a, b), hi = Math.max(a, b);
-      return (x >= lo && x <= hi && hi > lo) ? 1 / (hi - lo) : 0;
-    }
-    if (fam === 'normal')      return npdf(x, a, b);
-    if (fam === 'exponential') return x < 0 ? 0 : a * Math.exp(-a * x);
-    if (fam === 'gamma') {
-      if (x <= 0) return 0;
-      const lp = (a - 1) * Math.log(x) - x / b - a * Math.log(b) - logGamma(a);
-      return safe(Math.exp(lp), 0);
-    }
-    if (fam === 'beta') {
-      if (x <= 0 || x >= 1) return 0;
-      const lp = (a - 1) * Math.log(x) + (b - 1) * Math.log(1 - x) + logGamma(a + b) - logGamma(a) - logGamma(b);
-      return safe(Math.exp(lp), 0);
-    }
-    if (fam === 'chi2') {
-      if (x <= 0) return 0;
-      const k2 = a / 2;
-      const lp = (k2 - 1) * Math.log(x) - x / 2 - k2 * Math.log(2) - logGamma(k2);
-      return safe(Math.exp(lp), 0);
-    }
-    return 0;
-  }
-  function moments(fam, a, b) {
-    if (fam === 'uniform')     { const lo = Math.min(a, b), hi = Math.max(a, b); return { mu: (lo + hi) / 2, vr: (hi - lo) ** 2 / 12 }; }
-    if (fam === 'normal')      return { mu: a, vr: b * b };
-    if (fam === 'exponential') return { mu: 1 / a, vr: 1 / (a * a) };
-    if (fam === 'gamma')       return { mu: a * b, vr: a * b * b };
-    if (fam === 'beta')        return { mu: a / (a + b), vr: a * b / ((a + b) ** 2 * (a + b + 1)) };
-    if (fam === 'chi2')        return { mu: a, vr: 2 * a };
-    return { mu: 0, vr: 0 };
-  }
+  const pdf = continuousPdf;       // (fam, x, a, b) — from ./stats/distributions.js
+  const moments = continuousMoments; // (fam, a, b)
 
   function draw() {
     const { ctx, w, h } = fitCanvas(cv);
@@ -481,10 +407,10 @@ mount('sum', () => {
   const go = document.getElementById('sum-go');
 
   const SAMPLERS = {
-    uniform: () => Math.random(),
-    normal:  () => gauss(),
-    exp:     () => expRV(1),
-    tri:     () => Math.random() + Math.random() - 1,
+    uniform: () => unitSamplers.uniform(),
+    normal:  () => unitSamplers.normal(),
+    exp:     () => unitSamplers.exp(),
+    tri:     () => unitSamplers.tri(),
   };
   const RANGES = { uniform: [0, 1], normal: [-3, 3], exp: [0, 5], tri: [-1, 1] };
 
@@ -631,14 +557,8 @@ mount('bayes', () => {
     setText('bay-tv', T.toFixed(2));
 
     const N = 1000;
-    const D = Math.round(N * P);
-    const ND = N - D;
-    const TP = Math.round(D * S);
-    const FN = D - TP;
-    const FP = Math.round(ND * (1 - T));
-    const TN = ND - FP;
-    const post  = (TP + FP) > 0 ? TP / (TP + FP) : 0;
-    const postn = (TN + FN) > 0 ? FN / (TN + FN) : 0;
+    const { tp: TP, fn: FN, fp: FP, tn: TN, posteriorPos: post, posteriorNeg: postn }
+      = bayesDiagnostic(P, S, T, N);   // ./stats/inference.js
     setText('bay-post',  (post  * 100).toFixed(1) + '%');
     setText('bay-postn', (postn * 100).toFixed(2) + '%');
 
@@ -777,17 +697,13 @@ mount('ci', () => {
     const lev = clamp(n('ci-l', 0.95), 0.5, 0.999);
     nV.textContent = nn; lV.textContent = lev.toFixed(2);
     const reps = 100;
-    const z = zstar(lev);
     let covered = 0;
     const intervals = [];
     for (let i = 0; i < reps; i++) {
-      let sum = 0, sq = 0;
-      for (let j = 0; j < nn; j++) { const x = gauss(); sum += x; sq += x * x; }
-      const mean = sum / nn;
-      const sd = Math.sqrt(Math.max(1e-9, (sq - nn * mean * mean) / Math.max(1, nn - 1)));
-      const half = z * sd / Math.sqrt(nn);
-      intervals.push([mean - half, mean + half]);
-      if (0 >= mean - half && 0 <= mean + half) covered++;
+      const sample = Array.from({ length: nn }, () => gauss());
+      const ci = confidenceInterval(sample, lev);   // ./stats/inference.js
+      intervals.push([ci.lo, ci.hi]);
+      if (covers(ci, 0)) covered++;
     }
     cov.textContent = `${covered}/${reps}`;
     const lim = Math.max(2, 4 / Math.sqrt(nn));
@@ -800,8 +716,8 @@ mount('ci', () => {
     for (let i = 0; i < reps; i++) {
       const y = m.t + slot * (i + 0.5);
       const [lo, hi] = intervals[i];
-      const covers = lo <= 0 && hi >= 0;
-      ctx.strokeStyle = covers ? ACCENT : BAD; ctx.lineWidth = 1.5;
+      const coversZero = lo <= 0 && hi >= 0;
+      ctx.strokeStyle = coversZero ? ACCENT : BAD; ctx.lineWidth = 1.5;
       ctx.beginPath(); ctx.moveTo(ax(lo), y); ctx.lineTo(ax(hi), y); ctx.stroke();
     }
   }
@@ -833,12 +749,10 @@ mount('ht', () => {
     const ymax = 0.45;
     const ay = y => h - m.b - (y / ymax) * (h - m.t - m.b);
 
-    const alpha = 1 - ncdf(thr);
-    const beta  = ncdf(thr - delta);
-    const pval  = 1 - ncdf(zobs);
+    const { alpha, beta, power, pValue: pval } = zTest(delta, thr, zobs); // ./stats/inference.js
     setText('ht-a',  alpha.toFixed(3));
     setText('ht-b',  beta.toFixed(3));
-    setText('ht-p',  (1 - beta).toFixed(3));
+    setText('ht-p',  power.toFixed(3));
     setText('ht-pv', pval.toFixed(4));
 
     axes(ctx, w, h, m, { x: 'z' });
@@ -898,21 +812,8 @@ mount('ht', () => {
 // =============================================================
 mount('tn', () => {
   const cv = document.getElementById('cv-tn');
-  function tpdf(x, df) {
-    const c = logGamma((df + 1) / 2) - logGamma(df / 2) - 0.5 * Math.log(df * Math.PI);
-    return Math.exp(c) * Math.pow(1 + x * x / df, -(df + 1) / 2);
-  }
-  function tcdfNumeric(c, df) {
-    // Numerical integration of the t-pdf, fast enough for the slider.
-    let s = 0; const N = 400;
-    const lo = -8, hi = c, dx = (hi - lo) / N;
-    for (let i = 0; i <= N; i++) {
-      const x = lo + i * dx;
-      const w = (i === 0 || i === N) ? 1 : (i % 2 ? 4 : 2);
-      s += w * tpdf(x, df);
-    }
-    return Math.min(1, Math.max(0, s * dx / 3));
-  }
+  const tpdf = tPdf;               // (x, df) — from ./stats/distributions.js
+  const tcdfNumeric = tCdf;        // (c, df)
 
   function draw() {
     const { ctx, w, h } = fitCanvas(cv);
@@ -1007,18 +908,10 @@ mount('reg', () => {
   const unay = py => ymin + (H - m.b - py) / (H - m.t - m.b) * (ymax - ymin);
   let drag = null;
 
+  // OLS fit via ./stats/regression.js; map field names the renderer expects.
   function fit() {
-    if (pts.length < 2) return { slope: 0, intc: 0, r2: 0, rmse: 0, sxx: 0, sse: 0, mx: 0 };
-    const nn = pts.length;
-    const mx = pts.reduce((s, p) => s + p.x, 0) / nn;
-    const my = pts.reduce((s, p) => s + p.y, 0) / nn;
-    let sxy = 0, sxx = 0, sst = 0;
-    for (const p of pts) { sxy += (p.x - mx) * (p.y - my); sxx += (p.x - mx) ** 2; sst += (p.y - my) ** 2; }
-    const slope = sxx ? sxy / sxx : 0;
-    const intc  = my - slope * mx;
-    let sse = 0;
-    for (const p of pts) { const e = p.y - (slope * p.x + intc); sse += e * e; }
-    return { slope, intc, r2: sst ? 1 - sse / sst : 0, rmse: Math.sqrt(sse / nn), sxx, sse, mx };
+    const f = leastSquares(pts);
+    return { slope: f.slope, intc: f.intercept, r2: f.r2, rmse: f.rmse, sxx: f.sxx, sse: f.sse, mx: f.meanX };
   }
 
   function draw() {

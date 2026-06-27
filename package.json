@@ -1,0 +1,11 @@
+{
+  "name": "stats-lab",
+  "version": "1.0.0",
+  "description": "Visual probability & statistics lab — tested, framework-free statistics cores.",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "test": "node --test"
+  },
+  "license": "MIT"
+}
