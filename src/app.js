@@ -1,5 +1,5 @@
 // ============================================================
-// stats-lab — 13 visual probability + statistics demos.
+// stats-lab — 14 visual probability + statistics demos.
 //
 // Every demo follows the same three-step pattern:
 //   1. read slider state through `n(id, default)` → always finite
@@ -23,6 +23,7 @@ import {
 import { gauss, expRV, unitSamplers } from './stats/random.js';
 import { leastSquares } from './stats/regression.js';
 import { confidenceInterval, covers, zTest, bayesDiagnostic } from './stats/inference.js';
+import { infer as bnInfer } from './stats/bayesnet.js';
 
 // ---------- DOM helper ---------------------------------------------------
 function n(id, fallback) {
@@ -1103,6 +1104,81 @@ mount('rw', () => {
   }
   for (const id of ['rw-k', 'rw-b']) document.getElementById(id).addEventListener('input', draw);
   document.getElementById('rw-go').addEventListener('click', draw);
+  window.addEventListener('resize', draw);
+  setTimeout(draw, 0);
+});
+
+// =============================================================
+// 7) Bayesian network — exact inference on the "wet grass" net,
+//    with the explaining-away effect (Module II: Bayesian networks).
+// =============================================================
+mount('bn', () => {
+  const cv = document.getElementById('cv-bn'); if (!cv) return;
+  const sel = id => document.getElementById(id);
+  const evOf = id => { const v = sel(id).value; return v === '' ? null : +v; };
+
+  function roundRect(ctx, x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath();
+  }
+  function edge(ctx, a, b) {
+    const dx = b.x - a.x, dy = b.y - a.y, L = Math.hypot(dx, dy) || 1;
+    const ux = dx / L, uy = dy / L;
+    const x0 = a.x + ux * 44, y0 = a.y + uy * 32;
+    const x1 = b.x - ux * 46, y1 = b.y - uy * 34;
+    ctx.strokeStyle = '#bcb29c'; ctx.lineWidth = 1.6;
+    ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.stroke();
+    const ang = Math.atan2(y1 - y0, x1 - x0), s = 8;
+    ctx.fillStyle = '#bcb29c';
+    ctx.beginPath(); ctx.moveTo(x1, y1);
+    ctx.lineTo(x1 - s * Math.cos(ang - 0.4), y1 - s * Math.sin(ang - 0.4));
+    ctx.lineTo(x1 - s * Math.cos(ang + 0.4), y1 - s * Math.sin(ang + 0.4));
+    ctx.closePath(); ctx.fill();
+  }
+  function node(ctx, c, label, p, ev, dead) {
+    const w = 138, h = 58, x = c.x - w / 2, y = c.y - h / 2;
+    let fill = '#fff', stroke = ACCENT;
+    if (ev === 1) { fill = 'rgba(22,163,74,0.13)'; stroke = GOOD; }
+    else if (ev === 0) { fill = 'rgba(220,38,38,0.11)'; stroke = BAD; }
+    roundRect(ctx, x, y, w, h, 11);
+    ctx.fillStyle = fill; ctx.fill();
+    ctx.lineWidth = ev == null ? 1.5 : 2.2; ctx.strokeStyle = stroke; ctx.stroke();
+    ctx.textAlign = 'left';
+    ctx.fillStyle = INK_S; ctx.font = '600 12px Inter, sans-serif';
+    ctx.fillText(label, x + 13, y + 19);
+    ctx.fillStyle = INK; ctx.font = '700 18px JetBrains Mono, monospace';
+    ctx.fillText(dead ? '—' : (p * 100).toFixed(1) + '%', x + 13, y + 41);
+    ctx.fillStyle = MUTED; ctx.font = '9.5px Inter, sans-serif';
+    ctx.fillText(ev == null ? 'P(true)' : 'observed', x + 80, y + 40);
+    ctx.fillStyle = RULE; ctx.fillRect(x + 13, y + 47, w - 26, 4);
+    if (!dead) { ctx.fillStyle = ev === 1 ? GOOD : ev === 0 ? BAD : ACCENT; ctx.fillRect(x + 13, y + 47, (w - 26) * p, 4); }
+  }
+
+  function draw() {
+    const { ctx, w, h } = fitCanvas(cv);
+    ctx.clearRect(0, 0, w, h);
+    const ev = { R: evOf('bn-r'), S: evOf('bn-s'), W: evOf('bn-w') };
+    const post = bnInfer(ev);
+    const dead = post.Z <= 0;            // impossible evidence (e.g. dry everything but wet grass)
+    const R = { x: w * 0.5, y: 46 }, S = { x: w * 0.27, y: h - 54 }, W = { x: w * 0.73, y: h - 54 };
+    edge(ctx, R, S); edge(ctx, R, W); edge(ctx, S, W);
+    node(ctx, R, 'Rain', post.R || 0, ev.R, dead);
+    node(ctx, S, 'Sprinkler', post.S || 0, ev.S, dead);
+    node(ctx, W, 'Wet grass', post.W || 0, ev.W, dead);
+    const pct = v => (dead ? 'n/a' : (v * 100).toFixed(1) + '%');
+    setText('bn-pr', pct(post.R)); setText('bn-ps', pct(post.S)); setText('bn-pw', pct(post.W));
+    if (dead) {
+      ctx.fillStyle = BAD; ctx.font = '600 12px Inter, sans-serif'; ctx.textAlign = 'center';
+      ctx.fillText('this evidence has probability 0 under the model', w / 2, h / 2 + 4);
+    }
+  }
+  for (const id of ['bn-r', 'bn-s', 'bn-w']) sel(id).addEventListener('change', draw);
+  sel('bn-reset').addEventListener('click', () => { for (const id of ['bn-r', 'bn-s', 'bn-w']) sel(id).value = ''; draw(); });
   window.addEventListener('resize', draw);
   setTimeout(draw, 0);
 });

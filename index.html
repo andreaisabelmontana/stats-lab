@@ -33,6 +33,7 @@
         <a href="#sum">sums</a>
         <a href="#clt">CLT</a>
         <a href="#bayes">Bayes</a>
+        <a href="#bayesnet">Bayes net</a>
         <a href="#mle">MLE</a>
         <a href="#ci">CI</a>
         <a href="#ht">test</a>
@@ -192,9 +193,37 @@
         </div>
       </section>
 
-      <!-- 7. MLE -------------------------------------------------------- -->
+      <!-- 7. BAYESIAN NETWORK ------------------------------------------- -->
+      <section class="demo" id="bayesnet">
+        <h2>7. Bayesian network — inference &amp; explaining away</h2>
+        <p class="cap">The course's central tool. This three-node network factorises the joint distribution along the
+          arrows: $P(R,S,W)=P(R)\,P(S\mid R)\,P(W\mid S,R)$. Set evidence on any node (observe it true or false) and the
+          posteriors update by exact enumeration. Try <em>Wet grass = true</em>: rain becomes more likely — then add
+          <em>Sprinkler = true</em> and watch rain drop again. That is <strong>explaining away</strong>: a known cause
+          discounts a competing one.</p>
+        <div class="row">
+          <div class="canvas-wrap"><canvas id="cv-bn" width="600" height="300"></canvas></div>
+          <div class="ctrls">
+            <label>Rain
+              <select id="bn-r"><option value="" selected>unobserved</option><option value="1">true</option><option value="0">false</option></select>
+            </label>
+            <label>Sprinkler
+              <select id="bn-s"><option value="" selected>unobserved</option><option value="1">true</option><option value="0">false</option></select>
+            </label>
+            <label>Wet grass
+              <select id="bn-w"><option value="" selected>unobserved</option><option value="1">true</option><option value="0">false</option></select>
+            </label>
+            <div class="readout"><span>P(Rain | e)</span><strong id="bn-pr" class="mono big">—</strong></div>
+            <div class="readout"><span>P(Sprinkler | e)</span><strong id="bn-ps" class="mono">—</strong></div>
+            <div class="readout"><span>P(Wet grass | e)</span><strong id="bn-pw" class="mono">—</strong></div>
+            <button id="bn-reset" class="btn">clear evidence</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- 8. MLE -------------------------------------------------------- -->
       <section class="demo" id="mle">
-        <h2>7. Maximum likelihood</h2>
+        <h2>8. Maximum likelihood</h2>
         <p class="cap">Fix some data. Slide the parameter. The likelihood peaks at the MLE — for an i.i.d. normal sample, that's the sample mean.</p>
         <div class="row">
           <div class="canvas-wrap"><canvas id="cv-mle" width="600" height="300"></canvas></div>
@@ -217,7 +246,7 @@
 
       <!-- 8. CONFIDENCE INTERVALS -------------------------------------- -->
       <section class="demo" id="ci">
-        <h2>8. Confidence intervals</h2>
+        <h2>9. Confidence intervals</h2>
         <p class="cap">100 random samples from $\mathcal{N}(0,1)$, 100 intervals. Long-run coverage should match nominal.</p>
         <div class="row">
           <div class="canvas-wrap"><canvas id="cv-ci" width="600" height="320"></canvas></div>
@@ -234,7 +263,7 @@
 
       <!-- 9. HYPOTHESIS TEST -------------------------------------------- -->
       <section class="demo" id="ht">
-        <h2>9. Hypothesis test &amp; p-value</h2>
+        <h2>10. Hypothesis test &amp; p-value</h2>
         <p class="cap">Red shade: Type I (α). Orange shade: Type II (β). Drag $\delta$ and $c$ to feel the trade-off.</p>
         <div class="row">
           <div class="canvas-wrap"><canvas id="cv-ht" width="600" height="300"></canvas></div>
@@ -255,7 +284,7 @@
 
       <!-- 10. t vs Normal ----------------------------------------------- -->
       <section class="demo" id="tn">
-        <h2>10. t-distribution vs Normal</h2>
+        <h2>11. t-distribution vs Normal</h2>
         <p class="cap">Heavier tails when $df$ is small. As $df\to\infty$ it converges to $\mathcal{N}(0,1)$.</p>
         <div class="row">
           <div class="canvas-wrap"><canvas id="cv-tn" width="600" height="280"></canvas></div>
@@ -272,7 +301,7 @@
 
       <!-- 11. REGRESSION ------------------------------------------------ -->
       <section class="demo" id="reg">
-        <h2>11. Linear regression</h2>
+        <h2>12. Linear regression</h2>
         <p class="cap">Drag points. The OLS line minimises $\sum(y-\hat y)^2$. Watch $R^2$ collapse when you add an outlier.</p>
         <div class="row">
           <div class="canvas-wrap"><canvas id="cv-reg" width="600" height="320"></canvas></div>
@@ -290,7 +319,7 @@
 
       <!-- 12. MONTE CARLO PI ------------------------------------------- -->
       <section class="demo" id="mc">
-        <h2>12. Monte Carlo $\pi$</h2>
+        <h2>13. Monte Carlo $\pi$</h2>
         <p class="cap">Fraction of darts inside the quarter circle, times 4. Error shrinks like $1/\sqrt N$.</p>
         <div class="row">
           <div class="canvas-wrap"><canvas id="cv-mc" width="320" height="320"></canvas></div>
@@ -308,7 +337,7 @@
 
       <!-- 13. RANDOM WALKS --------------------------------------------- -->
       <section class="demo" id="rw">
-        <h2>13. Random walks</h2>
+        <h2>14. Random walks</h2>
         <p class="cap">Symmetric walks spread like $\sqrt t$; a tiny drift dominates eventually.</p>
         <div class="row">
           <div class="canvas-wrap"><canvas id="cv-rw" width="600" height="280"></canvas></div>
