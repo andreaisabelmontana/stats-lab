@@ -41,6 +41,7 @@
         <a href="#reg">regression</a>
         <a href="#mc">MC π</a>
         <a href="#rw">walks</a>
+        <a href="#markov">Markov</a>
       </nav>
     </header>
 
@@ -347,6 +348,36 @@
             <label>step bias <span class="mono" id="rw-bv">0.00</span>
               <input id="rw-b" type="range" min="-0.4" max="0.4" step="0.01" value="0"/></label>
             <button id="rw-go" class="btn">replay</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- 15. MARKOV CHAIN --------------------------------------------- -->
+      <section class="demo" id="markov">
+        <h2>15. Markov chains — steady state</h2>
+        <p class="cap">A Markov chain hops between states with fixed transition probabilities (the "memoryless"
+          property: the next state depends only on the current one). Each node's fill shows its current
+          probability mass, and the bars below evolve as $\pi_{t+1}=\pi_t P$. Step or play and watch the
+          distribution forget its starting state and settle on the unique <strong>stationary distribution</strong>
+          $\pi^{*}=\pi^{*}P$ (the tick marks) — sessions 8–9.</p>
+        <div class="row">
+          <div class="canvas-wrap"><canvas id="cv-mk" width="600" height="360"></canvas></div>
+          <div class="ctrls">
+            <label>chain
+              <select id="mk-preset">
+                <option value="weather" selected>weather (Sunny/Cloudy/Rainy)</option>
+                <option value="surfer">web surfer (3 pages)</option>
+                <option value="triangle">symmetric walk (→ uniform)</option>
+              </select>
+            </label>
+            <label>start in
+              <select id="mk-start"><option value="0" selected>state 1</option><option value="1">state 2</option><option value="2">state 3</option></select>
+            </label>
+            <div class="readout"><span>step $t$</span><strong id="mk-step" class="mono">0</strong></div>
+            <div class="readout"><span>at steady state?</span><strong id="mk-conv" class="mono big">—</strong></div>
+            <button id="mk-go" class="btn">step</button>
+            <button id="mk-play" class="btn">play</button>
+            <button id="mk-reset" class="btn">reset</button>
           </div>
         </div>
       </section>

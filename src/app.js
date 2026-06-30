@@ -1,5 +1,5 @@
 // ============================================================
-// stats-lab — 14 visual probability + statistics demos.
+// stats-lab — 15 visual probability + statistics demos.
 //
 // Every demo follows the same three-step pattern:
 //   1. read slider state through `n(id, default)` → always finite
@@ -24,6 +24,7 @@ import { gauss, expRV, unitSamplers } from './stats/random.js';
 import { leastSquares } from './stats/regression.js';
 import { confidenceInterval, covers, zTest, bayesDiagnostic } from './stats/inference.js';
 import { infer as bnInfer } from './stats/bayesnet.js';
+import { step as mkStep, stationary as mkStationary } from './stats/markov.js';
 
 // ---------- DOM helper ---------------------------------------------------
 function n(id, fallback) {
@@ -1181,4 +1182,111 @@ mount('bn', () => {
   sel('bn-reset').addEventListener('click', () => { for (const id of ['bn-r', 'bn-s', 'bn-w']) sel(id).value = ''; draw(); });
   window.addEventListener('resize', draw);
   setTimeout(draw, 0);
+});
+
+// =============================================================
+// 15) Markov chain — distribution πP iterated to the stationary state,
+//     with a 3-state diagram (Module III: Markov chains, sessions 8-9).
+// =============================================================
+mount('mk', () => {
+  const cv = document.getElementById('cv-mk'); if (!cv) return;
+  const PRESETS = {
+    weather:  { names: ['Sunny', 'Cloudy', 'Rainy'], P: [[0.7, 0.2, 0.1], [0.3, 0.4, 0.3], [0.2, 0.45, 0.35]] },
+    surfer:   { names: ['Page A', 'Page B', 'Page C'], P: [[0.1, 0.6, 0.3], [0.4, 0.1, 0.5], [0.5, 0.4, 0.1]] },
+    triangle: { names: ['State 1', 'State 2', 'State 3'], P: [[0.5, 0.25, 0.25], [0.25, 0.5, 0.25], [0.25, 0.25, 0.5]] },
+  };
+  let key = 'weather', pi = [1, 0, 0], t = 0, star = [1 / 3, 1 / 3, 1 / 3], timer = null;
+  const get = id => document.getElementById(id);
+
+  function rebuild() {
+    key = get('mk-preset').value;
+    star = mkStationary(PRESETS[key].P).dist;
+    const names = PRESETS[key].names;
+    [...get('mk-start').options].forEach((o, i) => { o.textContent = names[i]; });
+    reset();
+  }
+  function reset() {
+    if (timer) { clearInterval(timer); timer = null; get('mk-play').textContent = 'play'; }
+    const s = +get('mk-start').value; pi = [0, 0, 0]; pi[s] = 1; t = 0; draw();
+  }
+  function stepOnce() { pi = mkStep(pi, PRESETS[key].P); t++; draw(); }
+
+  function edge(ctx, A, B, p) {
+    if (p < 0.02) return;
+    const dx = B.x - A.x, dy = B.y - A.y, L = Math.hypot(dx, dy) || 1, ux = dx / L, uy = dy / L, px = -uy, py = ux, off = 10;
+    const x0 = A.x + ux * 30 + px * off, y0 = A.y + uy * 30 + py * off;
+    const x1 = B.x - ux * 33 + px * off, y1 = B.y - uy * 33 + py * off;
+    ctx.strokeStyle = '#cbbf9f'; ctx.lineWidth = 1 + p * 7;
+    ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.stroke();
+    const ang = Math.atan2(y1 - y0, x1 - x0), s = 7 + p * 3;
+    ctx.fillStyle = '#cbbf9f';
+    ctx.beginPath(); ctx.moveTo(x1, y1);
+    ctx.lineTo(x1 - s * Math.cos(ang - 0.45), y1 - s * Math.sin(ang - 0.45));
+    ctx.lineTo(x1 - s * Math.cos(ang + 0.45), y1 - s * Math.sin(ang + 0.45));
+    ctx.closePath(); ctx.fill();
+    if (p >= 0.1) { ctx.fillStyle = MUTED; ctx.font = '9px JetBrains Mono, monospace'; ctx.textAlign = 'center';
+      ctx.fillText(p.toFixed(2), (x0 + x1) / 2 + px * 7, (y0 + y1) / 2 + py * 7 + 3); ctx.textAlign = 'left'; }
+  }
+  function node(ctx, c, name, p, stay) {
+    const r = 30;
+    ctx.beginPath(); ctx.arc(c.x, c.y, r, 0, 7);
+    ctx.fillStyle = `rgba(67,56,202,${(0.1 + 0.72 * p).toFixed(3)})`; ctx.fill();
+    ctx.lineWidth = 2; ctx.strokeStyle = ACCENT; ctx.stroke();
+    ctx.textAlign = 'center';
+    ctx.fillStyle = p > 0.45 ? '#fff' : INK; ctx.font = '700 14px JetBrains Mono, monospace';
+    ctx.fillText((p * 100).toFixed(0) + '%', c.x, c.y + 5);
+    ctx.fillStyle = INK_S; ctx.font = '600 11px Inter, sans-serif';
+    ctx.fillText(name, c.x, c.y - r - 7);
+    ctx.fillStyle = MUTED; ctx.font = '9px JetBrains Mono, monospace';
+    ctx.fillText('stay ' + stay.toFixed(2), c.x, c.y + r + 13);
+    ctx.textAlign = 'left';
+  }
+  function draw() {
+    const { ctx, w, h } = fitCanvas(cv);
+    ctx.clearRect(0, 0, w, h);
+    const P = PRESETS[key].P, names = PRESETS[key].names;
+    const N = [{ x: w * 0.5, y: 56 }, { x: w * 0.27, y: 196 }, { x: w * 0.73, y: 196 }];
+    for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) if (i !== j) edge(ctx, N[i], N[j], P[i][j]);
+    for (let i = 0; i < 3; i++) node(ctx, N[i], names[i], pi[i], P[i][i]);
+
+    // distribution bars (current) with stationary tick marks
+    const bx = 46, bw = (w - 92) / 3, by1 = h - 22, bh = 78, by0 = by1 - bh;
+    ctx.strokeStyle = RULE; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(bx - 6, by1); ctx.lineTo(w - 40, by1); ctx.stroke();
+    for (let i = 0; i < 3; i++) {
+      const x = bx + i * bw, bwid = bw * 0.5, cx = x + bw / 2 - bwid / 2;
+      ctx.fillStyle = ACCENT_S; ctx.fillRect(cx, by1 - pi[i] * bh, bwid, pi[i] * bh);
+      ctx.strokeStyle = ACCENT; ctx.lineWidth = 1.2; ctx.strokeRect(cx, by1 - pi[i] * bh, bwid, pi[i] * bh);
+      // stationary marker
+      const sy = by1 - star[i] * bh;
+      ctx.strokeStyle = BAD; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(cx - 5, sy); ctx.lineTo(cx + bwid + 5, sy); ctx.stroke();
+      ctx.fillStyle = INK_S; ctx.font = '10px Inter, sans-serif'; ctx.textAlign = 'center';
+      ctx.fillText(names[i], x + bw / 2, by1 + 14);
+      ctx.fillStyle = INK; ctx.font = '600 10px JetBrains Mono, monospace';
+      ctx.fillText((pi[i] * 100).toFixed(1) + '%', x + bw / 2, by0 - 4);
+      ctx.textAlign = 'left';
+    }
+    ctx.fillStyle = BAD; ctx.font = '9px Inter, sans-serif'; ctx.textAlign = 'right';
+    ctx.fillText('— stationary π*', w - 40, by0 - 4); ctx.textAlign = 'left';
+
+    setText('mk-step', t);
+    const drift = pi.reduce((s, p, i) => s + Math.abs(p - star[i]), 0);
+    const conv = drift < 0.01;
+    setText('mk-conv', conv ? 'yes — converged' : 'not yet');
+    get('mk-conv').style.color = conv ? GOOD : WARN;
+  }
+  get('mk-preset').addEventListener('change', rebuild);
+  get('mk-start').addEventListener('change', reset);
+  get('mk-go').addEventListener('click', stepOnce);
+  get('mk-play').addEventListener('click', () => {
+    if (timer) { clearInterval(timer); timer = null; get('mk-play').textContent = 'play'; return; }
+    get('mk-play').textContent = 'pause';
+    timer = setInterval(() => {
+      const drift = pi.reduce((s, p, i) => s + Math.abs(p - star[i]), 0);
+      if (drift < 0.002) { clearInterval(timer); timer = null; get('mk-play').textContent = 'play'; return; }
+      stepOnce();
+    }, 650);
+  });
+  get('mk-reset').addEventListener('click', reset);
+  window.addEventListener('resize', draw);
+  rebuild();
 });
